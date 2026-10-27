@@ -42,10 +42,10 @@ impl Display for ParseError {
             self.position, self.message
         )?;
         if let Some(exp) = &self.expected {
-            write!(f, " (expected: {})", exp)?;
+            write!(f, " (expected: {exp})")?;
         }
         if let Some(found) = &self.found {
-            write!(f, " (found: '{}')", found)?;
+            write!(f, " (found: '{found}')")?;
         }
         Ok(())
     }
@@ -165,7 +165,7 @@ where
         Parser::new(move |input| {
             let results = self.parse(input)?;
             let mut all_results = Vec::new();
-            for (result, remaining) in results.into_iter() {
+            for (result, remaining) in results {
                 if let Some(next_choices) = f(result).parse(remaining) {
                     all_results.extend(next_choices);
                 }
@@ -843,10 +843,7 @@ fn main() {
         "sep_by must produce exactly 1 choice on matching input"
     );
     let (elems, rem) = sep_res.into_iter().next().unwrap();
-    println!(
-        "  sep_by() choice purity: parsed {:?}, remaining: {:?}",
-        elems, rem
-    );
+    println!("  sep_by() choice purity: parsed {elems:?}, remaining: {rem:?}");
     assert_eq!(elems, vec!['a', 'a']);
     assert_eq!(rem, &[]);
 
@@ -880,11 +877,10 @@ fn main() {
     let input_chars: Vec<char> = query_str.chars().collect();
     let parsed_query = sql_parser().parse_complete(&input_chars);
     match &parsed_query {
-        Ok(query) => println!(
-            "  Successfully parsed query with arbitrary whitespace:\n  {:?}",
-            query
-        ),
-        Err(e) => println!("  Parse failure:\n  {}", e),
+        Ok(query) => {
+            println!("  Successfully parsed query with arbitrary whitespace:\n  {query:?}")
+        },
+        Err(e) => println!("  Parse failure:\n  {e}"),
     }
     assert!(parsed_query.is_ok());
 
@@ -905,7 +901,7 @@ fn main() {
     let insert_str = "INSERT INTO users VALUES ( alice , 30 )";
     let insert_chars: Vec<char> = insert_str.chars().collect();
     let parsed_insert = sql_parser().parse_complete(&insert_chars).unwrap();
-    println!("  Parsed INSERT using between(): {:?}", parsed_insert);
+    println!("  Parsed INSERT using between(): {parsed_insert:?}");
     println!();
 
     // ------------------------------------------------------------------------
@@ -930,10 +926,7 @@ fn main() {
         table: "accounts".to_string(),
         where_clause: None,
     });
-    println!(
-        "  Prism review constructed SqlQuery AST: {:?}",
-        reviewed_query
-    );
+    println!("  Prism review constructed SqlQuery AST: {reviewed_query:?}");
     println!();
 
     // ------------------------------------------------------------------------
@@ -973,8 +966,8 @@ fn main() {
     };
     let checked_valid = validate_select_query(&valid_stmt, &schema);
     match &checked_valid {
-        Validated::Valid(checked) => println!("  Valid query schema check: {:?}", checked),
-        Validated::Invalid(errs) => panic!("Expected valid, got: {:?}", errs),
+        Validated::Valid(checked) => println!("  Valid query schema check: {checked:?}"),
+        Validated::Invalid(errs) => panic!("Expected valid, got: {errs:?}"),
     }
 
     // Invalid query: wrong column, relational operator applied to Text column, bad integer literal

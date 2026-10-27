@@ -149,6 +149,10 @@ impl<T> Choice<T> {
     ///
     /// The first yielded item becomes the new primary. Returns [`ChoiceError::EmptyFlatten`]
     /// if every iterable is empty. Does not require `T: Clone`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ChoiceError::EmptyFlatten`] if all nested iterables are empty.
     pub fn try_flatten<I>(self) -> Result<Choice<I>, ChoiceError>
     where
         T: IntoIterator<Item = I>,
@@ -171,6 +175,10 @@ impl<T> Choice<T> {
     /// Evaluates `f` in priority order, short-circuiting on the first `Ok`.
     ///
     /// Returns the first `Ok`, or the last `Err` if all values fail.
+    ///
+    /// # Errors
+    ///
+    /// Returns the last evaluated `E` error if every alternative returns `Err`.
     pub fn try_each<R, E, F>(&self, mut f: F) -> Result<R, E>
     where
         F: FnMut(&T) -> Result<R, E>,
@@ -393,6 +401,7 @@ impl<T: Arbitrary> Arbitrary for Choice<T> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod unit_tests {
     use super::Choice;
     use crate::prelude::*;

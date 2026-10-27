@@ -62,6 +62,7 @@ impl<E> ContextError<E> {
     }
 
     /// Prepends context to the front of the context stack (newest first).
+    #[must_use]
     pub fn with_context<C>(mut self, ctx: C) -> Self
     where
         C: IntoErrorContext,
@@ -71,6 +72,7 @@ impl<E> ContextError<E> {
     }
 
     /// Prepends multiple context entries in encounter order (last item becomes newest).
+    #[must_use]
     pub fn with_contexts<I, C>(mut self, contexts: I) -> Self
     where
         I: IntoIterator<Item = C>,
@@ -118,6 +120,10 @@ impl<E> ContextError<E> {
     }
 
     /// Formats the context chain as `newest -> ... -> oldest` (or root error if empty).
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic; in-memory string formatting is infallible.
     pub fn error_chain(&self) -> String
     where
         E: Display,
@@ -131,6 +137,10 @@ impl<E> ContextError<E> {
     }
 
     /// Writes the formatted context chain directly to a writer.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`core::fmt::Error`] if writing to `out` fails.
     pub(crate) fn write_chain<W>(&self, out: &mut W) -> core::fmt::Result
     where
         W: core::fmt::Write,
@@ -226,6 +236,10 @@ where
 }
 
 /// Maps any error in `result` into a [`ContextError`] with `context`.
+///
+/// # Errors
+///
+/// Returns `Err(ContextError<E>)` wrapping the original error if `result` is `Err`.
 pub fn with_context_result<T, E, C>(result: Result<T, E>, context: C) -> Result<T, ContextError<E>>
 where
     C: IntoErrorContext,
@@ -260,6 +274,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::*;
 

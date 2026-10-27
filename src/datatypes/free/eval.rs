@@ -18,6 +18,10 @@ fn unwrap_arc<T: Clone>(arc: Arc<T>) -> T {
 
 impl<F, A> Free<F, A> {
     /// Internal iterative trampoline evaluating both [`run`](Self::run) and [`try_run`](Self::try_run).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`FreeError::Interpreter`] on interpreter failure, or [`FreeError::TypeMismatch`] on type mismatch.
     fn run_internal<Interp, E>(&self, mut interp: Interp) -> Result<A, FreeError<E>>
     where
         F: Send + Sync + Clone + 'static,
@@ -99,6 +103,8 @@ impl<F, A> Free<F, A> {
 
     /// Evaluates the `Free` computation with a fallible effect interpreter.
     ///
+    /// # Errors
+    ///
     /// Returns `Err(FreeError::Interpreter(e))` on interpreter failure, or
     /// `Err(FreeError::TypeMismatch)` if the returned payload type does not match `A`.
     pub fn try_run<Interp, E>(&self, interp: Interp) -> Result<A, FreeError<E>>
@@ -112,6 +118,11 @@ impl<F, A> Free<F, A> {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::missing_panics_doc,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap
+)]
 mod tests {
     use alloc::format;
     use alloc::string::String;

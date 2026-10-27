@@ -175,6 +175,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod unit_tests {
     use alloc::rc::Rc;
     use alloc::string::String;
@@ -230,12 +231,12 @@ mod unit_tests {
     #[test]
     fn test_modify_move_closure() {
         struct MoveOnly(String);
-        let move_only = MoveOnly("suffix".into());
-
         #[derive(Clone, Debug, PartialEq)]
         struct Item {
             name: String,
         }
+
+        let move_only = MoveOnly("suffix".into());
         let item_lens = Lens::new(|i: &Item| &i.name, |_i, name| Item { name });
 
         let item = Item {

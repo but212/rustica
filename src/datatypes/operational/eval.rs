@@ -10,6 +10,14 @@ enum TryFrame<H, E> {
 // Trampoline interpreter.
 impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
     /// Evaluates the program using `handler` with stack safety.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(E)` if any suspended command fails in `handler`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if static type erasure invariants are violated during downcasting.
     pub fn try_run(self, handler: &mut H) -> Result<A, E> {
         let mut cur: Node<H, AnyBox, E> = self.into_any().take_node();
         let mut stack: Vec<TryFrame<H, E>> = Vec::new();
@@ -51,6 +59,7 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use alloc::string::{String, ToString};
 

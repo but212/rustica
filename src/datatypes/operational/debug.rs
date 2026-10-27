@@ -23,6 +23,7 @@ impl<H, A: fmt::Debug, E> fmt::Debug for TryProgram<H, A, E> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use alloc::format;
 

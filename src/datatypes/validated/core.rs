@@ -257,6 +257,10 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Returns `Ok(T)` if valid, or `Err(NonEmptyErrors<E>)` if invalid.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(NonEmptyErrors<E>)` containing all accumulated errors when `self` is [`Invalid`](Self::Invalid).
     pub fn into_value(self) -> Result<T, NonEmptyErrors<E>> {
         match self {
             Self::Valid(a) => Ok(a),
@@ -265,6 +269,10 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Returns `Ok(NonEmptyErrors<E>)` if invalid, or `Err(T)` if valid.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(T)` containing the valid value when `self` is [`Valid`](Self::Valid).
     pub fn into_error_payload(self) -> Result<NonEmptyErrors<E>, T> {
         match self {
             Self::Valid(a) => Err(a),
@@ -300,7 +308,7 @@ impl<T, E> Validated<T, E> {
     pub fn unwrap_or(self, default: T) -> T {
         match self {
             Self::Valid(x) => x,
-            _ => default,
+            Self::Invalid(_) => default,
         }
     }
 
@@ -338,6 +346,14 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Converts into `Result`, discarding all but the first error if invalid.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(E)` containing the first error when `self` is [`Invalid`](Self::Invalid).
+    ///
+    /// # Panics
+    ///
+    /// Never panics; `NonEmptyErrors` is statically guaranteed to contain at least one error.
     pub fn into_result_first_error(self) -> Result<T, E> {
         match self {
             Self::Valid(value) => Ok(value),
@@ -411,6 +427,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use alloc::string::{String, ToString};
 
@@ -531,15 +548,6 @@ mod tests {
 
     #[test]
     fn test_non_empty_errors_display_and_error() {
-        let errors = NonEmptyErrors::from_first_and_iter(
-            "first error".to_string(),
-            ["second error".to_string(), "third error".to_string()],
-        );
-        assert_eq!(
-            alloc::format!("{errors}"),
-            "first error; second error; third error"
-        );
-
         #[derive(Debug)]
         struct DummyError(&'static str);
         impl core::fmt::Display for DummyError {
@@ -548,6 +556,15 @@ mod tests {
             }
         }
         impl core::error::Error for DummyError {}
+
+        let errors = NonEmptyErrors::from_first_and_iter(
+            "first error".to_string(),
+            ["second error".to_string(), "third error".to_string()],
+        );
+        assert_eq!(
+            alloc::format!("{errors}"),
+            "first error; second error; third error"
+        );
 
         let err_col = NonEmptyErrors::new(DummyError("inner root"));
         let as_error: &dyn core::error::Error = &err_col;

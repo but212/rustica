@@ -81,7 +81,7 @@ fn main() {
     let theme = initial_user.settings.theme.clone();
 
     let current_mode = mode_lens.view(&theme);
-    println!("  Current theme mode: {}", current_mode);
+    println!("  Current theme mode: {current_mode}");
     assert_eq!(current_mode, "light");
     assert_eq!(mode_lens.to_value(&theme), "light");
 
@@ -104,7 +104,7 @@ fn main() {
         .then(theme_font_size_lens());
 
     let original_font = *user_font_lens.view(&initial_user);
-    println!("  Directly fetched nested font size: {}", original_font);
+    println!("  Directly fetched nested font size: {original_font}");
     assert_eq!(original_font, 14);
 
     let updated_user = user_font_lens.set(initial_user.clone(), 18);
@@ -145,7 +145,7 @@ fn main() {
     };
 
     let font_bytes = theme_font_size_lens().view(&current_theme).to_le_bytes();
-    println!("  Viewed font size as bytes: {:?}", font_bytes);
+    println!("  Viewed font size as bytes: {font_bytes:?}");
     assert_eq!(font_bytes, 16u32.to_le_bytes());
 
     let resized_theme =

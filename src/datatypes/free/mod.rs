@@ -70,10 +70,16 @@ impl<F, A> Free<F, A> {
         Self { node: Some(node) }
     }
 
+    /// # Panics
+    ///
+    /// Panics if the internal node has already been consumed.
     const fn node(&self) -> &Node<F, A> {
         self.node.as_ref().expect("Free node already consumed")
     }
 
+    /// # Panics
+    ///
+    /// Panics if the internal node has already been consumed.
     const fn take_node(&mut self) -> Node<F, A> {
         self.node.take().expect("Free node already consumed")
     }
@@ -180,6 +186,11 @@ impl<F, A> Free<F, A> {
     ///
     /// Evaluates `f(a)` immediately if `self` is pure. Otherwise, constructs a `Bind` node
     /// evaluated iteratively by the trampoline in [`run`](Self::run).
+    ///
+    /// # Panics
+    ///
+    /// The resulting `Free` AST node does not panic during normal evaluation; downcast
+    /// failure is prevented by static type invariants.
     pub fn and_then<B, Next>(&self, f: Next) -> Free<F, B>
     where
         F: Send + Sync + Clone + 'static,
@@ -311,6 +322,7 @@ impl<F, A: Default> Default for Free<F, A> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc, clippy::cast_precision_loss)]
 mod tests {
     use core::sync::atomic::{AtomicUsize, Ordering};
 

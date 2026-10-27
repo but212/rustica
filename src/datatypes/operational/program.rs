@@ -71,6 +71,7 @@ impl<H: 'static, A: 'static> Program<H, A> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use alloc::string::String;
     use alloc::vec;

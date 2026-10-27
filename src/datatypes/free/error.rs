@@ -48,6 +48,7 @@ impl<E: core::error::Error + 'static> core::error::Error for FreeError<E> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use alloc::string::ToString;
 

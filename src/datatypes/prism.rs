@@ -189,6 +189,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod unit_tests {
     use alloc::{boxed::Box, collections::BTreeMap, format, string::String};
 
@@ -288,6 +289,18 @@ mod unit_tests {
             Dictionary(BTreeMap<String, Self>),
         }
 
+        #[derive(Debug, Clone, PartialEq)]
+        enum Inner {
+            Val(i32),
+            Empty,
+        }
+
+        #[derive(Debug, Clone, PartialEq)]
+        enum Outer {
+            Nested(Inner),
+            Other,
+        }
+
         let dict = Prism::new(
             |value: &ConfigValue| match value {
                 ConfigValue::Dictionary(map) => Some(map),
@@ -306,22 +319,10 @@ mod unit_tests {
         assert_eq!(new_values.len(), 3);
         assert!(new_values.contains_key("theme"));
 
-        #[derive(Debug, Clone, PartialEq)]
-        enum Inner {
-            Val(i32),
-            Empty,
-        }
-
-        #[derive(Debug, Clone, PartialEq)]
-        enum Outer {
-            Nested(Inner),
-            Other,
-        }
-
         let outer = Prism::new(
             |value: &Outer| match value {
                 Outer::Nested(inner) => Some(inner),
-                _ => None,
+                Outer::Other => None,
             },
             Outer::Nested,
         );

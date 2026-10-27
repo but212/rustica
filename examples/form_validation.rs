@@ -55,7 +55,7 @@ fn main() {
     println!("1. Validating invalid input (fails multiple checks):");
     let invalid_result = validate_user("a", "invalid-email", 15);
     match invalid_result {
-        Validated::Valid(user) => println!("Success: {:?}", user),
+        Validated::Valid(user) => println!("Success: {user:?}"),
         Validated::Invalid(errors) => {
             println!("Validation failed with {} error(s):", errors.len());
             for (idx, err) in errors.iter().enumerate() {
@@ -70,8 +70,8 @@ fn main() {
     println!("2. Validating valid input:");
     let valid_result = validate_user("ferris", "ferris@rust-lang.org", 24);
     match &valid_result {
-        Validated::Valid(user) => println!("Registered user successfully: {:?}", user),
-        Validated::Invalid(errors) => println!("Failed: {:?}", errors),
+        Validated::Valid(user) => println!("Registered user successfully: {user:?}"),
+        Validated::Invalid(errors) => println!("Failed: {errors:?}"),
     }
 
     println!();
@@ -107,7 +107,8 @@ fn main() {
     match collected {
         Validated::Valid(users) => println!("  All {} users validly registered!", users.len()),
         Validated::Invalid(errors) => {
-            println!("  Batch failed with errors: {:?}", errors.as_slice())
+            let slice = errors.as_slice();
+            println!("  Batch failed with errors: {slice:?}");
         },
     }
 }

@@ -48,6 +48,10 @@ pub trait Handler<C: Command> {
 /// Fallible handler for command `C` with error type `E`.
 pub trait TryHandler<C: Command, E> {
     /// Interprets command `C`, returning its output or an error of type `E`.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(E)` if command execution fails.
     fn try_handle(&mut self, cmd: C) -> Result<C::Output, E>;
 }
 
@@ -101,6 +105,10 @@ impl<H, A, E> TryProgram<H, A, E> {
     /// Takes ownership of the node, leaving `None` transiently.
     ///
     /// Invariant: `node` is `Some` on all observable values; private ownership ensures unreachable panic.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal node has already been consumed.
     const fn take_node(&mut self) -> Node<H, A, E> {
         self.node.take().expect("TryProgram node already consumed")
     }
@@ -108,6 +116,10 @@ impl<H, A, E> TryProgram<H, A, E> {
 
 impl<H: 'static, E: 'static> TryProgram<H, (), E> {
     /// Suspends a command into a `TryProgram`.
+    ///
+    /// # Panics
+    ///
+    /// Does not panic in normal usage; command output downcasting is statically guaranteed.
     pub fn suspend<C>(cmd: C) -> TryProgram<H, C::Output, E>
     where
         C: Command,
@@ -147,6 +159,10 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
     }
 
     /// Sequences another computation from the result of `self`.
+    ///
+    /// # Panics
+    ///
+    /// Does not panic in normal usage; continuation downcasting is statically guaranteed.
     pub fn and_then<B: 'static, F>(mut self, f: F) -> TryProgram<H, B, E>
     where
         F: FnOnce(A) -> TryProgram<H, B, E> + 'static,
@@ -257,6 +273,7 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::fixtures::*;
     use super::*;

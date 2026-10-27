@@ -26,6 +26,7 @@ pub trait Semigroup: Sized {
     /// let combined = a.combine(b);
     /// assert_eq!(combined, vec![1, 2, 3, 4, 5, 6]);
     /// ```
+    #[must_use]
     fn combine(self, other: Self) -> Self;
 }
 
@@ -105,6 +106,7 @@ impl<T: Semigroup> Semigroup for Option<T> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use alloc::{borrow::ToOwned, vec::Vec};
 

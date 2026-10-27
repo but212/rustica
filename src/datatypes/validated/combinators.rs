@@ -178,6 +178,11 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Combines three `Validated` values with `f`, accumulating errors.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic in normal usage; internal downcasts and error
+    /// accumulation rely on statically verified non-empty invariants.
     pub fn zip_with3<T2, T3, R, F>(
         self, second: Validated<T2, E>, third: Validated<T3, E>, f: F,
     ) -> Validated<R, E>
@@ -232,6 +237,7 @@ impl<T, E> Validated<T, E> {
     ///
     /// The callback receives [`NonEmptyErrors`], preserving the guarantee that
     /// an invalid value always contains at least one error.
+    #[must_use]
     pub fn recover_all_at_once<F>(self, recovery: F) -> Self
     where
         F: FnOnce(NonEmptyErrors<E>) -> Self,
@@ -243,6 +249,7 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Replaces errors with a `default` fallback value.
+    #[must_use]
     pub fn recover_with(self, default: T) -> Self {
         match self {
             Self::Valid(v) => Self::Valid(v),
@@ -252,6 +259,7 @@ impl<T, E> Validated<T, E> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc, clippy::large_stack_arrays)]
 mod tests {
     use super::Validated;
     use crate::datatypes::validated::NonEmptyErrors;

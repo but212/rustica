@@ -92,7 +92,7 @@ fn main() {
     println!("  Preview on non-matching variant safely returned None");
 
     let new_running = progress_prism.review(75);
-    println!("  Reviewed new TaskStatus from progress: {:?}", new_running);
+    println!("  Reviewed new TaskStatus from progress: {new_running:?}");
     assert_eq!(new_running, TaskStatus::Running { progress: 75 });
 
     let new_completed = completed_prism.review("Export complete".to_string());
@@ -106,7 +106,7 @@ fn main() {
     // Stage 2: Modifying Variant Payloads with Structural Sharing
     println!("2. Modifying Focused Variants:");
     let advanced = progress_prism.modify(running.clone(), |p| (p + 15).min(100));
-    println!("  Advanced progress from 45 to: {:?}", advanced);
+    println!("  Advanced progress from 45 to: {advanced:?}");
     assert_eq!(advanced, TaskStatus::Running { progress: 60 });
 
     // Modifying a non-matching variant is a safe no-op
@@ -124,7 +124,7 @@ fn main() {
     // Stage 3: Updates via `set`
     println!("3. Updates via set:");
     let updated_running = progress_prism.set(running.clone(), 90);
-    println!("  Updated running progress: {:?}", updated_running);
+    println!("  Updated running progress: {updated_running:?}");
     assert_eq!(updated_running, TaskStatus::Running { progress: 90 });
 
     let still_completed = progress_prism.set(completed.clone(), 100);
@@ -142,10 +142,7 @@ fn main() {
     let alert_notif = AppNotification::SystemAlert("Server maintenance scheduled".to_string());
 
     let extracted_progress = notification_progress_prism.preview(&task_notif);
-    println!(
-        "  Extracted nested progress from AppNotification: {:?}",
-        extracted_progress
-    );
+    println!("  Extracted nested progress from AppNotification: {extracted_progress:?}");
     assert_eq!(extracted_progress, Some(&30));
     assert_eq!(notification_progress_prism.to_value(&task_notif), Some(30));
 
@@ -153,20 +150,14 @@ fn main() {
     println!("  Nested preview on mismatched outer variant safely returned None.");
 
     let updated_notif = notification_progress_prism.modify(task_notif, |p| p + 20);
-    println!(
-        "  Modified nested variant progress through composed prism: {:?}",
-        updated_notif
-    );
+    println!("  Modified nested variant progress through composed prism: {updated_notif:?}");
     assert_eq!(
         updated_notif,
         AppNotification::Task(TaskStatus::Running { progress: 50 })
     );
 
     let constructed_notif = notification_progress_prism.review(80);
-    println!(
-        "  Constructed deep structure via review: {:?}",
-        constructed_notif
-    );
+    println!("  Constructed deep structure via review: {constructed_notif:?}");
     assert_eq!(
         constructed_notif,
         AppNotification::Task(TaskStatus::Running { progress: 80 })

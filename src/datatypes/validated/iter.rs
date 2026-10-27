@@ -13,7 +13,7 @@ impl<T, E> IntoIterator for Validated<T, E> {
     fn into_iter(self) -> Self::IntoIter {
         match self {
             Self::Valid(a) => Some(a).into_iter(),
-            _ => None.into_iter(),
+            Self::Invalid(_) => None.into_iter(),
         }
     }
 }
@@ -98,7 +98,7 @@ impl<T, E> Validated<T, E> {
     pub fn iter(&self) -> Iter<'_, T> {
         match self {
             Self::Valid(a) => Some(a).into_iter(),
-            _ => None.into_iter(),
+            Self::Invalid(_) => None.into_iter(),
         }
     }
 
@@ -106,7 +106,7 @@ impl<T, E> Validated<T, E> {
     pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         match self {
             Self::Valid(a) => Some(a).into_iter(),
-            _ => None.into_iter(),
+            Self::Invalid(_) => None.into_iter(),
         }
     }
 
@@ -127,7 +127,7 @@ impl<T, E> Validated<T, E> {
     pub fn iter_errors_mut(&mut self) -> core::slice::IterMut<'_, E> {
         match self {
             Self::Invalid(es) => es.iter_mut(),
-            _ => [].iter_mut(),
+            Self::Valid(_) => [].iter_mut(),
         }
     }
 
@@ -141,6 +141,7 @@ impl<T, E> Validated<T, E> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::*;
     use alloc::string::String;

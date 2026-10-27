@@ -27,6 +27,11 @@ impl<F: fmt::Debug, A: fmt::Debug> fmt::Debug for DebugFree<'_, F, A> {
     }
 }
 
+/// Formats a `Free` node recursively.
+///
+/// # Errors
+///
+/// Returns [`fmt::Error`] if formatting fails.
 fn fmt_free<F: fmt::Debug, A: fmt::Debug>(
     free: &Free<F, A>, f: &mut fmt::Formatter<'_>, depth: usize,
 ) -> fmt::Result {
@@ -96,6 +101,7 @@ impl<F: fmt::Debug, A: fmt::Debug> fmt::Debug for Free<F, A> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use alloc::format;
 

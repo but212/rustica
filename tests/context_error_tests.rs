@@ -108,7 +108,7 @@ fn test_context_error_map_error_and_from() {
 
     let from_err: ContextError<&str> = "raw error".into();
     assert_eq!(*from_err.error(), "raw error");
-    assert!(from_err.contexts().is_empty());
+    assert_eq!(from_err.contexts(), &[] as &[String]);
 }
 
 #[test]
