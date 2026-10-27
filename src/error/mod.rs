@@ -113,16 +113,6 @@ impl<E> ContextError<E> {
         self.context.clone()
     }
 
-    /// Returns an iterator over context entries (newest first).
-    #[inline]
-    #[deprecated(
-        since = "0.21.0",
-        note = "Use `contexts().iter()` directly: `err.contexts().iter()`"
-    )]
-    pub fn context_iter(&self) -> core::slice::Iter<'_, String> {
-        self.context.iter()
-    }
-
     /// Maps the root error while preserving accumulated context.
     #[inline]
     pub fn map_error<F, T>(self, f: F) -> ContextError<T>
@@ -259,19 +249,6 @@ where
     result.map_err(|e| with_context(e, context))
 }
 
-/// Returns a closure attaching `context` to an error.
-#[inline]
-#[deprecated(
-    since = "0.21.0",
-    note = "Use `|e| with_context(e, context.clone())` or `ContextError::new(e).with_context(c)`"
-)]
-pub const fn context_fn<E, C>(context: C) -> impl Fn(E) -> ContextError<E>
-where
-    C: IntoErrorContext + Clone,
-{
-    move |error| with_context(error, context.clone())
-}
-
 /// Wraps `error` in a [`ContextError`] populated with `contexts`.
 pub fn accumulate_context<E, I, C>(error: E, contexts: I) -> ContextError<E>
 where
@@ -354,15 +331,6 @@ mod tests {
         let lazy = crate::context!("value {}", 7);
         let ok: Result<(), ContextError<&str>> = with_context_result(Ok(()), lazy);
         assert!(ok.is_ok());
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn context_fn_attaches_context() {
-        let attach = context_fn("step failed");
-        let err = attach("io timeout");
-        assert_eq!(err.error(), &"io timeout");
-        assert_eq!(err.contexts(), ["step failed"].as_slice());
     }
 
     #[test]

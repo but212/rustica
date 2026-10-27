@@ -115,7 +115,7 @@ Boolean inspection methods borrow via `&self`:
 ### 7.1 Structural Flattening and Filtering (`flatten`, `filter`)
 
 - Structural transforms prefer **consuming `self`** to avoid forcing `T: Clone`:
-  - Primary (consuming): `fn flatten<I>(self) -> Option<Self::Output<I>> where T: IntoIterator<Item = I>`
+  - Primary (consuming): `fn try_flatten<I>(self) -> Result<Self::Output<I>, ChoiceError> where T: IntoIterator<Item = I>`
   - Primary (consuming): `fn filter<F>(self, predicate: F) -> Option<Self>`
   - Borrowed companion: `fn filter_values<F>(&self, predicate: F) -> ... where T: Clone`
 
@@ -154,6 +154,6 @@ Boolean inspection methods borrow via `&self`:
 | **In-place Setter** | `&mut self`, updates field in-place | `set_*` (`set_timeout`, `set_code`) |
 | **Predicate** | Boolean state query | `is_*`, `has_*`, `can_*`, `contains` (always `&self`) |
 | **Computation Runner** | Evaluates effect or state computation | `run(self)`, `try_run(self)` (distinct from `get`) |
-| **Collection Flatten/Filter** | Structural consumption without `Clone` | Primary `flatten(self)`, `filter(self)` |
+| **Collection Flatten/Filter** | Structural consumption without `Clone` | Primary `try_flatten(self)`, `filter(self)` |
 | **Repeated Combining** | Consumes owned argument on final step | `repeat(value, n)` (avoids trailing `.clone()`) |
 | **Consuming Iterators** | Yields owned items without secondary buffer clone | `into_iter().next()` (`pop()` from reverse leaf buffer) |

@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [Unreleased]
+
+### Removed
+
+- **Deprecated Validated & Free Combinators (Breaking)**: Removed `Validated::lift2`, `Validated::lift3`, and `Free::lift2`. Use `zip_with` / `zip_with3` method syntax. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
+- **`Validated::collect` & `Validated::sequence` (Breaking)**: Removed the inherent associated functions. Use `FromIterator` (`iter.into_iter().collect::<Validated<C, E>>()`) and `values.into_iter().collect::<Validated<Vec<_>, _>>().map(f)`. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
+- **Operational Standalone Functions (Breaking)**: Removed `operational::suspend` and `operational::try_suspend`. Use `Command::suspend` / `Command::try_suspend` or `Program::suspend` / `TryProgram::suspend`. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
+- **`ContextError::context_iter` (Breaking)**: Removed. Use `contexts().iter()`. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
+- **`error::context_fn` (Breaking)**: Removed, along with its `prelude::error` re-export. Use `with_context(e, c)` or `ContextError::new(e).with_context(c)`. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
+- **`Prism::set_with` & `Prism::modify_with` (Breaking)**: Removed. Use `set_always` / `modify_always` (or `set` / `modify`). Non-focus fields are no longer preserved by the prism; the whole variant payload is the focus. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
+- **`Choice::flatten` (Breaking)**: Removed. Use `try_flatten().ok()` or `try_flatten()` to keep the `ChoiceError`. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
+- **`datatypes::error` Module (Breaking)**: Removed the backward-compatibility alias. Use `rustica::datatypes::{ChoiceError, FreeError}` or `rustica::prelude::*`. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
+
 ## [0.21.0]
 
 ### Changed

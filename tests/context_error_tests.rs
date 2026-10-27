@@ -22,8 +22,7 @@ fn test_context_error_stack() {
         ["user lookup failed", "query failed"].as_slice()
     );
 
-    #[allow(deprecated)]
-    let collected: Vec<_> = err.context_iter().map(String::as_str).collect();
+    let collected: Vec<_> = err.contexts().iter().map(String::as_str).collect();
     assert_eq!(collected, vec!["user lookup failed", "query failed"]);
 }
 

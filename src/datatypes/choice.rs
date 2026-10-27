@@ -176,20 +176,6 @@ impl<T> Choice<T> {
         }
     }
 
-    /// Flattens nested iterables in priority order, returning `None` if all are empty.
-    ///
-    /// Consumes `self` without requiring `T: Clone`.
-    #[deprecated(
-        since = "0.21.0",
-        note = "Use `try_flatten().ok()`, or `try_flatten()` to keep the `ChoiceError`"
-    )]
-    pub fn flatten<I>(self) -> Option<Choice<I>>
-    where
-        T: IntoIterator<Item = I>,
-    {
-        self.try_flatten().ok()
-    }
-
     /// Evaluates `f` in priority order, short-circuiting on the first `Ok`.
     ///
     /// Returns the first `Ok`, or the last `Err` if all values fail.
