@@ -54,7 +54,6 @@ pub struct ContextError<E> {
 
 impl<E> ContextError<E> {
     /// Wraps a root error with an empty context stack.
-    #[inline]
     pub const fn new(error: E) -> Self {
         Self {
             error,
@@ -63,7 +62,7 @@ impl<E> ContextError<E> {
     }
 
     /// Prepends context to the front of the context stack (newest first).
-    #[inline]
+    #[must_use]
     pub fn with_context<C>(mut self, ctx: C) -> Self
     where
         C: IntoErrorContext,
@@ -73,7 +72,7 @@ impl<E> ContextError<E> {
     }
 
     /// Prepends multiple context entries in encounter order (last item becomes newest).
-    #[inline]
+    #[must_use]
     pub fn with_contexts<I, C>(mut self, contexts: I) -> Self
     where
         I: IntoIterator<Item = C>,
@@ -90,31 +89,26 @@ impl<E> ContextError<E> {
     }
 
     /// Returns a reference to the root error.
-    #[inline]
     pub const fn error(&self) -> &E {
         &self.error
     }
 
     /// Consumes the wrapper and returns the underlying error.
-    #[inline]
     pub fn into_error(self) -> E {
         self.error
     }
 
     /// Returns accumulated context entries (newest first).
-    #[inline]
     pub const fn contexts(&self) -> &[String] {
         self.context.as_slice()
     }
 
     /// Clones accumulated context entries into a vector (newest first).
-    #[inline]
     pub fn to_contexts(&self) -> Vec<String> {
         self.context.clone()
     }
 
     /// Maps the root error while preserving accumulated context.
-    #[inline]
     pub fn map_error<F, T>(self, f: F) -> ContextError<T>
     where
         F: FnOnce(E) -> T,
@@ -126,6 +120,10 @@ impl<E> ContextError<E> {
     }
 
     /// Formats the context chain as `newest -> ... -> oldest` (or root error if empty).
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic; in-memory string formatting is infallible.
     pub fn error_chain(&self) -> String
     where
         E: Display,
@@ -139,6 +137,10 @@ impl<E> ContextError<E> {
     }
 
     /// Writes the formatted context chain directly to a writer.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`core::fmt::Error`] if writing to `out` fails.
     pub(crate) fn write_chain<W>(&self, out: &mut W) -> core::fmt::Result
     where
         W: core::fmt::Write,
@@ -173,7 +175,6 @@ impl<E: Debug + Display + core::error::Error + 'static> core::error::Error for C
 }
 
 impl<E> From<E> for ContextError<E> {
-    #[inline]
     fn from(error: E) -> Self {
         Self::new(error)
     }
@@ -186,21 +187,18 @@ pub trait IntoErrorContext {
 }
 
 impl IntoErrorContext for String {
-    #[inline]
     fn into_error_context(self) -> String {
         self
     }
 }
 
 impl IntoErrorContext for &str {
-    #[inline]
     fn into_error_context(self) -> String {
         self.to_string()
     }
 }
 
 impl IntoErrorContext for &String {
-    #[inline]
     fn into_error_context(self) -> String {
         self.clone()
     }
@@ -215,7 +213,6 @@ pub struct LazyContext<F> {
 
 impl<F> LazyContext<F> {
     /// Creates a lazy context with the given generator.
-    #[inline]
     pub const fn new(generator: F) -> Self {
         Self { generator }
     }
@@ -225,14 +222,12 @@ impl<F> IntoErrorContext for LazyContext<F>
 where
     F: FnOnce() -> String,
 {
-    #[inline]
     fn into_error_context(self) -> String {
         (self.generator)()
     }
 }
 
 /// Wraps `error` in a [`ContextError`] with `context`.
-#[inline]
 pub fn with_context<E, C>(error: E, context: C) -> ContextError<E>
 where
     C: IntoErrorContext,
@@ -241,7 +236,10 @@ where
 }
 
 /// Maps any error in `result` into a [`ContextError`] with `context`.
-#[inline]
+///
+/// # Errors
+///
+/// Returns `Err(ContextError<E>)` wrapping the original error if `result` is `Err`.
 pub fn with_context_result<T, E, C>(result: Result<T, E>, context: C) -> Result<T, ContextError<E>>
 where
     C: IntoErrorContext,
@@ -276,6 +274,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::*;
 

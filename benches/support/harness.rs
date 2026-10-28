@@ -1,7 +1,7 @@
 //! Minimalist zero-dependency benchmark harness for benchmarks.
 //!
 //! Provides lightweight benchmarking functionality measuring execution time
-//! using standard library primitives (std::time::Instant and std::hint::black_box).
+//! using standard library primitives (`std::time::Instant` and `std::hint::black_box`).
 
 use std::fmt::Display;
 use std::hint::black_box;
@@ -361,14 +361,14 @@ fn summarize_bytes(deltas: &[usize]) -> Option<Summary<usize>> {
     let mean = deltas.iter().sum::<usize>() / count;
 
     let mut sorted = deltas.to_vec();
-    sorted.sort();
+    sorted.sort_unstable();
 
     let min = sorted[0];
     let max = sorted[count - 1];
     let median = if count % 2 == 1 {
         sorted[count / 2]
     } else {
-        (sorted[count / 2 - 1] + sorted[count / 2]) / 2
+        sorted[count / 2 - 1].midpoint(sorted[count / 2])
     };
     let p95_idx = ((count as f64 * 0.95).ceil() as usize)
         .saturating_sub(1)

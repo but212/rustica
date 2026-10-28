@@ -34,9 +34,9 @@ fn build_then_chain(depth: usize) -> Free<CalcOp, i32> {
 fn build_bind_chain(depth: usize) -> Free<CalcOp, i32> {
     let mut program: Free<CalcOp, ()> = CalcOp::add(1);
     for _ in 1..depth.saturating_sub(1) {
-        program = program.and_then(|_| CalcOp::add(1));
+        program = program.and_then(|()| CalcOp::add(1));
     }
-    program.and_then(|_| CalcOp::get())
+    program.and_then(|()| CalcOp::get())
 }
 
 fn run_calc(program: &Free<CalcOp, i32>) -> i32 {

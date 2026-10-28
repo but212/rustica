@@ -14,7 +14,7 @@ fn connect_db(timeout_ms: i32) -> Result<String, &'static str> {
 
 fn process_data(connection: &str, value: i32) -> Result<String, &'static str> {
     if value % 2 == 0 {
-        Ok(format!("Processed {} rows via {}", value, connection))
+        Ok(format!("Processed {value} rows via {connection}"))
     } else {
         Err("Value must be even number")
     }
@@ -35,7 +35,7 @@ fn main() {
 
     let config_str = "not_a_number";
     match run_pipeline(config_str) {
-        Ok(message) => println!("Success: {}", message),
+        Ok(message) => println!("Success: {message}"),
         Err(err) => println!("Error occurred:\n{}\n", err.error_chain()),
     }
 
@@ -43,7 +43,7 @@ fn main() {
 
     let config_str = "200";
     match run_pipeline(config_str) {
-        Ok(message) => println!("Success: {}\n", message),
+        Ok(message) => println!("Success: {message}\n"),
         Err(err) => println!("Error occurred:\n{}\n", err.error_chain()),
     }
 

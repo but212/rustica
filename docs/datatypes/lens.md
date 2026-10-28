@@ -48,6 +48,6 @@ assert_eq!(older.age, 31);
 
 ## Type Class Laws
 
-1. **GetSet**: `lens.set(s.clone(), lens.to_value(&s)) == s`
-2. **SetGet**: `*lens.view(&lens.set(s, a)) == a` (under `PartialEq`; for bit-exact types like `f64` where `-0.0 == 0.0` or non-reflexive `NaN`, use `set_always`)
-3. **SetSet**: `lens.set(lens.set(s, a1), a2) == lens.set(s, a2)`
+1. **`GetSet`**: `lens.set(s.clone(), lens.to_value(&s)) == s`
+2. **`SetGet`**: `*lens.view(&lens.set(s, a)) == a` (under `PartialEq`; for bit-exact types like `f64` where `-0.0 == 0.0` or non-reflexive `NaN`, use `set_always`)
+3. **`SetSet`**: `lens.set(lens.set(s, a1), a2) == lens.set(s, a2)`

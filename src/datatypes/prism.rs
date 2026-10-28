@@ -71,7 +71,7 @@ where
     /// );
     /// ```
     pub const fn new(preview: PreviewFn, review: ReviewFn) -> Self {
-        Prism {
+        Self {
             preview,
             review,
             _phantom: PhantomData,
@@ -79,13 +79,11 @@ where
     }
 
     /// Borrows the focused value, if present.
-    #[inline]
     pub fn preview<'s>(&self, source: &'s S) -> Option<&'s A> {
         (self.preview)(source)
     }
 
     /// Clones the focused value, if present.
-    #[inline]
     pub fn to_value(&self, source: &S) -> Option<A>
     where
         A: Clone,
@@ -94,7 +92,6 @@ where
     }
 
     /// Constructs `S` from `a`.
-    #[inline]
     pub fn review(&self, a: A) -> S {
         (self.review)(a)
     }
@@ -102,7 +99,6 @@ where
     /// Sets the focused value, returning `source` unchanged if unmatched or if equal under `PartialEq`.
     ///
     /// For bit-exact types or non-reflexive types, use [`Prism::set_always`].
-    #[inline]
     pub fn set(&self, source: S, new_value: A) -> S
     where
         A: PartialEq,
@@ -115,7 +111,6 @@ where
     }
 
     /// Reconstructs the focused variant when matched, bypassing equality checks.
-    #[inline]
     pub fn set_always(&self, source: S, new_value: A) -> S {
         match (self.preview)(&source) {
             Some(_) => (self.review)(new_value),
@@ -126,7 +121,6 @@ where
     /// Modifies the focused value with `f`, returning `source` unchanged if unmatched or equal under `PartialEq`.
     ///
     /// For bit-exact types or non-reflexive types, use [`Prism::modify_always`].
-    #[inline]
     pub fn modify<F>(&self, source: S, f: F) -> S
     where
         F: FnOnce(&A) -> A,
@@ -146,7 +140,6 @@ where
     }
 
     /// Modifies the focused value unconditionally when matched.
-    #[inline]
     pub fn modify_always<F>(&self, source: S, f: F) -> S
     where
         F: FnOnce(&A) -> A,
@@ -158,7 +151,6 @@ where
     }
 }
 
-#[inline]
 fn compose_prism_views<S, A: 'static, B, V1, V2>(
     v1: V1, v2: V2,
 ) -> impl Fn(&S) -> Option<&B> + Clone
@@ -175,7 +167,6 @@ where
     PreviewFn: Fn(&S) -> Option<&A> + Clone,
 {
     /// Composes `self` with `other` to focus on a nested variant `B`.
-    #[inline]
     #[allow(clippy::type_complexity)]
     pub fn then<B, PreviewFn2, ReviewFn2>(
         self, other: Prism<A, B, PreviewFn2, ReviewFn2>,
@@ -198,6 +189,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod unit_tests {
     use alloc::{boxed::Box, collections::BTreeMap, format, string::String};
 
@@ -294,7 +286,19 @@ mod unit_tests {
         enum ConfigValue {
             Integer(i64),
             String(String),
-            Dictionary(BTreeMap<String, ConfigValue>),
+            Dictionary(BTreeMap<String, Self>),
+        }
+
+        #[derive(Debug, Clone, PartialEq)]
+        enum Inner {
+            Val(i32),
+            Empty,
+        }
+
+        #[derive(Debug, Clone, PartialEq)]
+        enum Outer {
+            Nested(Inner),
+            Other,
         }
 
         let dict = Prism::new(
@@ -315,22 +319,10 @@ mod unit_tests {
         assert_eq!(new_values.len(), 3);
         assert!(new_values.contains_key("theme"));
 
-        #[derive(Debug, Clone, PartialEq)]
-        enum Inner {
-            Val(i32),
-            Empty,
-        }
-
-        #[derive(Debug, Clone, PartialEq)]
-        enum Outer {
-            Nested(Inner),
-            Other,
-        }
-
         let outer = Prism::new(
             |value: &Outer| match value {
                 Outer::Nested(inner) => Some(inner),
-                _ => None,
+                Outer::Other => None,
             },
             Outer::Nested,
         );

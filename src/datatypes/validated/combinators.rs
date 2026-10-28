@@ -2,16 +2,6 @@ use super::core::NonEmptyErrors;
 use crate::datatypes::validated::Validated;
 use crate::traits::semigroup::Semigroup;
 
-#[inline]
-fn merge_errors<E>(
-    a: Option<NonEmptyErrors<E>>, b: Option<NonEmptyErrors<E>>,
-) -> Option<NonEmptyErrors<E>> {
-    match (a, b) {
-        (Some(x), Some(y)) => Some(x.combine(y)),
-        (x, y) => x.or(y),
-    }
-}
-
 impl<T, E> Validated<T, E> {
     /// Maps `f` over the valid value, leaving errors unchanged.
     ///
@@ -26,14 +16,13 @@ impl<T, E> Validated<T, E> {
     /// let invalid: Validated<i32, &str> = Validated::invalid("error");
     /// assert_eq!(invalid.map(|v| v * 2), Validated::invalid("error"));
     /// ```
-    #[inline]
     pub fn map<U, F>(self, mut f: F) -> Validated<U, E>
     where
         F: FnMut(T) -> U,
     {
         match self {
-            Validated::Valid(x) => Validated::Valid(f(x)),
-            Validated::Invalid(es) => Validated::Invalid(es),
+            Self::Valid(x) => Validated::Valid(f(x)),
+            Self::Invalid(es) => Validated::Invalid(es),
         }
     }
 
@@ -47,14 +36,13 @@ impl<T, E> Validated<T, E> {
     /// let invalid: Validated<i32, &str> = Validated::invalid("error");
     /// assert_eq!(invalid.map_err(|e| format!("{e}!")), Validated::invalid("error!".to_string()));
     /// ```
-    #[inline]
     pub fn map_err<F, G>(self, g: G) -> Validated<T, F>
     where
         G: FnMut(E) -> F,
     {
         match self {
-            Validated::Valid(x) => Validated::Valid(x),
-            Validated::Invalid(es) => Validated::Invalid(es.map(g)),
+            Self::Valid(x) => Validated::Valid(x),
+            Self::Invalid(es) => Validated::Invalid(es.map(g)),
         }
     }
 
@@ -73,15 +61,14 @@ impl<T, E> Validated<T, E> {
     /// let result = invalid.bimap(|v| v * 2, |e| format!("Err: {e}"));
     /// assert_eq!(result, Validated::invalid("Err: failed".to_string()));
     /// ```
-    #[inline]
     pub fn bimap<U, F, FVal, FErr>(self, mut f: FVal, g: FErr) -> Validated<U, F>
     where
         FVal: FnMut(T) -> U,
         FErr: FnMut(E) -> F,
     {
         match self {
-            Validated::Valid(x) => Validated::Valid(f(x)),
-            Validated::Invalid(es) => Validated::Invalid(es.map(g)),
+            Self::Valid(x) => Validated::Valid(f(x)),
+            Self::Invalid(es) => Validated::Invalid(es.map(g)),
         }
     }
 
@@ -105,14 +92,13 @@ impl<T, E> Validated<T, E> {
     /// let fail_step1: Validated<&str, String> = Validated::invalid("bad input".to_string());
     /// assert_eq!(fail_step1.and_then(parse_positive), Validated::invalid("bad input".to_string()));
     /// ```
-    #[inline]
     pub fn and_then<U, F>(self, f: F) -> Validated<U, E>
     where
         F: FnOnce(T) -> Validated<U, E>,
     {
         match self {
-            Validated::Valid(x) => f(x),
-            Validated::Invalid(es) => Validated::Invalid(es),
+            Self::Valid(x) => f(x),
+            Self::Invalid(es) => Validated::Invalid(es),
         }
     }
 
@@ -132,18 +118,16 @@ impl<T, E> Validated<T, E> {
     /// let res = e1.zip_with(e2, |a, b| a + b);
     /// assert_eq!(res.error_slice(), &["err1", "err2"]);
     /// ```
-    #[inline]
     pub fn zip_with<U, R, F>(self, other: Validated<U, E>, f: F) -> Validated<R, E>
     where
         F: FnOnce(T, U) -> R,
     {
         match (self, other) {
-            (Validated::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
-            (Validated::Valid(_), Validated::Invalid(es)) => Validated::Invalid(es),
-            (Validated::Invalid(es), Validated::Valid(_)) => Validated::Invalid(es),
-            (Validated::Invalid(es1), Validated::Invalid(es2)) => {
-                Validated::Invalid(es1.combine(es2))
+            (Self::Valid(a), Validated::Valid(b)) => Validated::Valid(f(a, b)),
+            (Self::Valid(_), Validated::Invalid(es)) | (Self::Invalid(es), Validated::Valid(_)) => {
+                Validated::Invalid(es)
             },
+            (Self::Invalid(es1), Validated::Invalid(es2)) => Validated::Invalid(es1.combine(es2)),
         }
     }
 
@@ -158,7 +142,6 @@ impl<T, E> Validated<T, E> {
     /// let v2: Validated<&str, &str> = Validated::valid("ok");
     /// assert_eq!(v1.zip(v2), Validated::valid((1, "ok")));
     /// ```
-    #[inline]
     pub fn zip<U>(self, other: Validated<U, E>) -> Validated<(T, U), E> {
         self.zip_with(other, |a, b| (a, b))
     }
@@ -179,7 +162,6 @@ impl<T, E> Validated<T, E> {
     /// let result = err_fn.apply(err_val);
     /// assert_eq!(result.error_slice(), &["fn error", "val error"]);
     /// ```
-    #[inline]
     pub fn apply<A, B>(self, value: Validated<A, E>) -> Validated<B, E>
     where
         T: FnOnce(A) -> B,
@@ -188,7 +170,11 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Combines three `Validated` values with `f`, accumulating errors.
-    #[inline]
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic in normal usage; internal downcasts and error
+    /// accumulation rely on statically verified non-empty invariants.
     pub fn zip_with3<T2, T3, R, F>(
         self, second: Validated<T2, E>, third: Validated<T3, E>, f: F,
     ) -> Validated<R, E>
@@ -196,7 +182,7 @@ impl<T, E> Validated<T, E> {
         F: FnOnce(T, T2, T3) -> R,
     {
         match (self, second, third) {
-            (Validated::Valid(a), Validated::Valid(b), Validated::Valid(c)) => {
+            (Self::Valid(a), Validated::Valid(b), Validated::Valid(c)) => {
                 Validated::Valid(f(a, b, c))
             },
             (v1, v2, v3) => {
@@ -213,7 +199,6 @@ impl<T, E> Validated<T, E> {
     }
 
     /// Combines three `Validated` values into a 3-tuple, accumulating errors.
-    #[inline]
     pub fn zip3<T2, T3>(
         self, second: Validated<T2, E>, third: Validated<T3, E>,
     ) -> Validated<(T, T2, T3), E> {
@@ -236,36 +221,37 @@ impl<T, E> Validated<T, E> {
     /// let valid2: Validated<i32, &str> = Validated::valid(2);
     /// assert_eq!(valid1.combine_errors(valid2), None);
     /// ```
-    #[inline]
     pub fn combine_errors(self, other: Self) -> Option<NonEmptyErrors<E>> {
-        merge_errors(self.into_error_opt(), other.into_error_opt())
+        self.into_error_opt().combine(other.into_error_opt())
     }
 
     /// Recovers using a closure given all accumulated errors.
     ///
     /// The callback receives [`NonEmptyErrors`], preserving the guarantee that
     /// an invalid value always contains at least one error.
+    #[must_use]
     pub fn recover_all_at_once<F>(self, recovery: F) -> Self
     where
         F: FnOnce(NonEmptyErrors<E>) -> Self,
     {
         match self {
-            Validated::Valid(v) => Validated::Valid(v),
-            Validated::Invalid(errors) => recovery(errors),
+            Self::Valid(v) => Self::Valid(v),
+            Self::Invalid(errors) => recovery(errors),
         }
     }
 
     /// Replaces errors with a `default` fallback value.
-    #[inline]
+    #[must_use]
     pub fn recover_with(self, default: T) -> Self {
         match self {
-            Validated::Valid(v) => Validated::Valid(v),
-            Validated::Invalid(_) => Validated::Valid(default),
+            Self::Valid(v) => Self::Valid(v),
+            Self::Invalid(_) => Self::Valid(default),
         }
     }
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc, clippy::large_stack_arrays)]
 mod tests {
     use super::Validated;
     use crate::datatypes::validated::NonEmptyErrors;
@@ -344,15 +330,13 @@ mod tests {
         let recovered = invalid.clone().recover_with(0);
         assert_eq!(recovered.unwrap(), 0);
 
-        let batch_recovery = invalid
-            .clone()
-            .recover_all_at_once(|errs: NonEmptyErrors<String>| {
-                if errs.len() == 2 {
-                    Validated::valid(100)
-                } else {
-                    Validated::invalid("unhandled".to_string())
-                }
-            });
+        let batch_recovery = invalid.recover_all_at_once(|errs: NonEmptyErrors<String>| {
+            if errs.len() == 2 {
+                Validated::valid(100)
+            } else {
+                Validated::invalid("unhandled".to_string())
+            }
+        });
         assert_eq!(batch_recovery.unwrap(), 100);
 
         let valid =

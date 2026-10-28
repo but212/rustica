@@ -21,12 +21,17 @@ fn spine_len<F>(mut cur: &Free<F, AnyValue>, link: SpineLink<F>) -> usize {
     len
 }
 
-impl<'a, F: fmt::Debug, A: fmt::Debug> fmt::Debug for DebugFree<'a, F, A> {
+impl<F: fmt::Debug, A: fmt::Debug> fmt::Debug for DebugFree<'_, F, A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt_free(self.0, f, self.1)
     }
 }
 
+/// Formats a `Free` node recursively.
+///
+/// # Errors
+///
+/// Returns [`fmt::Error`] if formatting fails.
 fn fmt_free<F: fmt::Debug, A: fmt::Debug>(
     free: &Free<F, A>, f: &mut fmt::Formatter<'_>, depth: usize,
 ) -> fmt::Result {
@@ -37,6 +42,7 @@ fn fmt_free<F: fmt::Debug, A: fmt::Debug>(
             Node::Suspend(cmd, _) => f.debug_tuple("Suspend").field(cmd).field(&"..").finish(),
             Node::Bind(_, _) => write!(f, "Bind(..)"),
             Node::Then(_, _) => write!(f, "Then(..)"),
+            Node::Zip(_, _, _) => write!(f, "Zip(..)"),
         };
     }
 
@@ -86,6 +92,12 @@ fn fmt_free<F: fmt::Debug, A: fmt::Debug>(
                     .finish()
             }
         },
+        Node::Zip(left, right, _) => f
+            .debug_tuple("Zip")
+            .field(&DebugFree(left, depth + 1))
+            .field(&DebugFree(right, depth + 1))
+            .field(&"<combiner>")
+            .finish(),
     }
 }
 
@@ -96,6 +108,7 @@ impl<F: fmt::Debug, A: fmt::Debug> fmt::Debug for Free<F, A> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use alloc::format;
 
@@ -118,7 +131,7 @@ mod tests {
     fn test_debug_bind_spine_beyond_limit_reports_depth() {
         let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
         for _ in 0..25 {
-            p = p.and_then(|_| Free::suspend(TestCmd::Increment(1)));
+            p = p.and_then(|()| Free::suspend(TestCmd::Increment(1)));
         }
         assert_eq!(format!("{p:?}"), "Bind(depth: 25, \"<continuation>\")");
     }
@@ -136,7 +149,7 @@ mod tests {
     fn test_debug_short_spines_render_nested() {
         let first: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
 
-        let bind: Free<TestCmd, ()> = first.and_then(|_| Free::suspend(TestCmd::Increment(2)));
+        let bind: Free<TestCmd, ()> = first.and_then(|()| Free::suspend(TestCmd::Increment(2)));
         assert_eq!(
             format!("{bind:?}"),
             "Bind(Suspend(Increment(1), \"<continuation>\"), \"<continuation>\")"
@@ -176,11 +189,33 @@ mod tests {
             p = if i % 2 == 0 {
                 p.then(Free::suspend(TestCmd::Increment(1)))
             } else {
-                p.and_then(|_| Free::suspend(TestCmd::Increment(1)))
+                p.and_then(|()| Free::suspend(TestCmd::Increment(1)))
             };
         }
         let debug_str = format!("{p:?}");
-        assert!(!debug_str.is_empty());
+        assert_ne!(debug_str, "");
+    }
+
+    #[test]
+    fn test_zip_debug_format() {
+        let zipped: Free<TestCmd, i32> = Free::<TestCmd, i32>::suspend(TestCmd::Fetch).zip_with(
+            Free::<TestCmd, i32>::suspend(TestCmd::Increment(2)),
+            |a, b| a + b,
+        );
+        assert_eq!(
+            format!("{zipped:?}"),
+            "Zip(Suspend(Fetch, \"<continuation>\"), Suspend(Increment(2), \"<continuation>\"), \"<combiner>\")"
+        );
+    }
+
+    #[test]
+    fn test_deep_right_nested_zip_debug_bounded() {
+        let mut acc: Free<TestCmd, i32> = Free::pure(0);
+        for _ in 0..50_000 {
+            acc = Free::<TestCmd, i32>::suspend(TestCmd::Fetch).zip_with(acc, |a, b| a + b);
+        }
+        let debug_str = format!("{acc:?}");
+        assert!(debug_str.contains("Zip(..)"));
     }
 
     #[test]
@@ -192,6 +227,6 @@ mod tests {
             p = x.clone().then(p).then(y.clone());
         }
         let debug_str = format!("{p:?}");
-        assert!(!debug_str.is_empty());
+        assert_ne!(debug_str, "");
     }
 }

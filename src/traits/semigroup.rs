@@ -26,18 +26,17 @@ pub trait Semigroup: Sized {
     /// let combined = a.combine(b);
     /// assert_eq!(combined, vec![1, 2, 3, 4, 5, 6]);
     /// ```
+    #[must_use]
     fn combine(self, other: Self) -> Self;
 }
 
 impl Semigroup for String {
-    #[inline]
     fn combine(self, other: Self) -> Self {
         self + &other
     }
 }
 
 impl<T> Semigroup for Vec<T> {
-    #[inline]
     fn combine(mut self, other: Self) -> Self {
         self.extend(other);
         self
@@ -45,7 +44,6 @@ impl<T> Semigroup for Vec<T> {
 }
 
 impl<K: Ord, V: Semigroup> Semigroup for BTreeMap<K, V> {
-    #[inline]
     fn combine(mut self, other: Self) -> Self {
         for (k, v) in other {
             match self.entry(k) {
@@ -63,7 +61,6 @@ impl<K: Ord, V: Semigroup> Semigroup for BTreeMap<K, V> {
 }
 
 impl<T: Ord> Semigroup for BTreeSet<T> {
-    #[inline]
     fn combine(mut self, other: Self) -> Self {
         self.extend(other);
         self
@@ -71,14 +68,12 @@ impl<T: Ord> Semigroup for BTreeSet<T> {
 }
 
 impl<A: Semigroup, B: Semigroup> Semigroup for (A, B) {
-    #[inline]
     fn combine(self, other: Self) -> Self {
         (self.0.combine(other.0), self.1.combine(other.1))
     }
 }
 
 impl<A: Semigroup, B: Semigroup, C: Semigroup> Semigroup for (A, B, C) {
-    #[inline]
     fn combine(self, other: Self) -> Self {
         (
             self.0.combine(other.0),
@@ -89,7 +84,6 @@ impl<A: Semigroup, B: Semigroup, C: Semigroup> Semigroup for (A, B, C) {
 }
 
 impl<A: Semigroup, B: Semigroup, C: Semigroup, D: Semigroup> Semigroup for (A, B, C, D) {
-    #[inline]
     fn combine(self, other: Self) -> Self {
         (
             self.0.combine(other.0),
@@ -101,7 +95,6 @@ impl<A: Semigroup, B: Semigroup, C: Semigroup, D: Semigroup> Semigroup for (A, B
 }
 
 impl<T: Semigroup> Semigroup for Option<T> {
-    #[inline]
     fn combine(self, other: Self) -> Self {
         match (self, other) {
             (Some(a), Some(b)) => Some(a.combine(b)),
@@ -113,6 +106,7 @@ impl<T: Semigroup> Semigroup for Option<T> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use alloc::{borrow::ToOwned, vec::Vec};
 
@@ -123,14 +117,14 @@ mod tests {
 
     impl Semigroup for TestSum {
         fn combine(self, other: Self) -> Self {
-            TestSum(self.0 + other.0)
+            Self(self.0 + other.0)
         }
     }
 
     #[test]
     fn empty_sequence_is_option() {
         let values: Vec<TestSum> = Vec::new();
-        assert_eq!(values.into_iter().reduce(|acc, x| acc.combine(x)), None);
+        assert_eq!(values.into_iter().reduce(Semigroup::combine), None);
     }
 
     #[derive(Clone, Debug, PartialEq, Eq)]
@@ -138,7 +132,7 @@ mod tests {
 
     impl super::Semigroup for Max {
         fn combine(self, other: Self) -> Self {
-            Max(self.0.max(other.0))
+            Self(self.0.max(other.0))
         }
     }
 

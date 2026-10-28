@@ -23,28 +23,28 @@ pub enum ChoiceError {
 
 impl ChoiceError {
     /// Returns `true` if this is [`EmptyFlatten`](Self::EmptyFlatten).
-    #[inline]
+    #[must_use]
     pub const fn is_empty_flatten(&self) -> bool {
-        matches!(self, ChoiceError::EmptyFlatten)
+        matches!(self, Self::EmptyFlatten)
     }
 
     /// Returns `true` if this is [`EmptyInput`](Self::EmptyInput).
-    #[inline]
+    #[must_use]
     pub const fn is_empty_input(&self) -> bool {
-        matches!(self, ChoiceError::EmptyInput)
+        matches!(self, Self::EmptyInput)
     }
 }
 
 impl Display for ChoiceError {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
-            ChoiceError::EmptyFlatten => {
+            Self::EmptyFlatten => {
                 write!(
                     f,
                     "Choice::try_flatten(): no inner iterable produced an item"
                 )
             },
-            ChoiceError::EmptyInput => write!(f, "Choice construction requires at least one value"),
+            Self::EmptyInput => write!(f, "Choice construction requires at least one value"),
         }
     }
 }
@@ -64,7 +64,6 @@ pub struct Choice<T> {
 
 impl<T> Choice<T> {
     /// Creates a `Choice` with a primary value and alternatives.
-    #[inline]
     pub fn new<I>(primary: T, alternatives: I) -> Self
     where
         I: IntoIterator<Item = T>,
@@ -76,7 +75,6 @@ impl<T> Choice<T> {
     }
 
     /// Creates a single-value `Choice` with no alternatives.
-    #[inline]
     pub const fn single(primary: T) -> Self {
         Self {
             primary,
@@ -85,31 +83,26 @@ impl<T> Choice<T> {
     }
 
     /// Returns a reference to the primary value.
-    #[inline]
     pub const fn primary(&self) -> &T {
         &self.primary
     }
 
     /// Returns a slice of alternative values.
-    #[inline]
     pub const fn alternatives(&self) -> &[T] {
         self.alternatives.as_slice()
     }
 
     /// Returns the total number of values (primary plus alternatives).
-    #[inline]
     pub const fn len(&self) -> usize {
         1 + self.alternatives.len()
     }
 
     /// Returns `false`; a `Choice` is statically non-empty.
-    #[inline]
     pub const fn is_empty(&self) -> bool {
         false
     }
 
     /// Creates a `Choice` from an iterator yielding at least one element.
-    #[inline]
     pub fn of_many<I>(many: I) -> Option<Self>
     where
         I: IntoIterator<Item = T>,
@@ -148,7 +141,6 @@ impl<T> Choice<T> {
     }
 
     /// Returns an iterator over all values in priority order.
-    #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         core::iter::once(&self.primary).chain(self.alternatives.iter())
     }
@@ -157,6 +149,10 @@ impl<T> Choice<T> {
     ///
     /// The first yielded item becomes the new primary. Returns [`ChoiceError::EmptyFlatten`]
     /// if every iterable is empty. Does not require `T: Clone`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ChoiceError::EmptyFlatten`] if all nested iterables are empty.
     pub fn try_flatten<I>(self) -> Result<Choice<I>, ChoiceError>
     where
         T: IntoIterator<Item = I>,
@@ -179,6 +175,10 @@ impl<T> Choice<T> {
     /// Evaluates `f` in priority order, short-circuiting on the first `Ok`.
     ///
     /// Returns the first `Ok`, or the last `Err` if all values fail.
+    ///
+    /// # Errors
+    ///
+    /// Returns the last evaluated `E` error if every alternative returns `Err`.
     pub fn try_each<R, E, F>(&self, mut f: F) -> Result<R, E>
     where
         F: FnMut(&T) -> Result<R, E>,
@@ -234,7 +234,6 @@ impl<T> Choice<T> {
     /// assert_eq!(*doubled.primary(), 2);
     /// assert_eq!(doubled.alternatives(), &[4, 6]);
     /// ```
-    #[inline]
     pub fn map<B, F>(self, mut f: F) -> Choice<B>
     where
         F: FnMut(T) -> B,
@@ -321,7 +320,7 @@ impl<T: Clone> TryFrom<&[T]> for Choice<T> {
 
 impl<T> From<Choice<T>> for Vec<T> {
     fn from(choice: Choice<T>) -> Self {
-        let mut v = Vec::with_capacity(1 + choice.alternatives.len());
+        let mut v = Self::with_capacity(1 + choice.alternatives.len());
         v.push(choice.primary);
         v.extend(choice.alternatives);
         v
@@ -345,7 +344,6 @@ impl<T: Default> Default for Choice<T> {
 impl<T> core::ops::Index<usize> for Choice<T> {
     type Output = T;
 
-    #[inline]
     fn index(&self, index: usize) -> &Self::Output {
         if index == 0 {
             &self.primary
@@ -363,7 +361,6 @@ impl<T> core::ops::Index<usize> for Choice<T> {
 
 /// Appends items to alternatives, preserving the primary value and order.
 impl<T> Extend<T> for Choice<T> {
-    #[inline]
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         self.alternatives.extend(iter);
     }
@@ -371,7 +368,6 @@ impl<T> Extend<T> for Choice<T> {
 
 /// Appends cloned items to alternatives, preserving the primary value and order.
 impl<'a, T: Clone> Extend<&'a T> for Choice<T> {
-    #[inline]
     fn extend<I: IntoIterator<Item = &'a T>>(&mut self, iter: I) {
         self.alternatives.extend(iter.into_iter().cloned());
     }
@@ -382,20 +378,20 @@ impl<T: Arbitrary> Arbitrary for Choice<T> {
     fn arbitrary(g: &mut Gen) -> Self {
         let primary: T = Arbitrary::arbitrary(g);
         let alternatives: Vec<T> = Arbitrary::arbitrary(g);
-        Choice::new(primary, alternatives)
+        Self::new(primary, alternatives)
     }
 
     fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
         let primary_shrinks = self.primary.shrink().map({
             let alternatives = self.alternatives.clone();
-            move |primary| Choice {
+            move |primary| Self {
                 primary,
                 alternatives: alternatives.clone(),
             }
         });
         let alt_shrinks = self.alternatives.shrink().map({
             let primary = self.primary.clone();
-            move |alternatives| Choice {
+            move |alternatives| Self {
                 primary: primary.clone(),
                 alternatives,
             }
@@ -405,6 +401,7 @@ impl<T: Arbitrary> Arbitrary for Choice<T> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod unit_tests {
     use super::Choice;
     use crate::prelude::*;
@@ -526,7 +523,7 @@ mod unit_tests {
         let mut calls = Vec::new();
         let res = choices.try_each(|&x| {
             calls.push(x);
-            Err::<i32, _>(format!("err_{}", x))
+            Err::<i32, _>(format!("err_{x}"))
         });
         assert_eq!(res, Err("err_3".to_string()));
         assert_eq!(calls, vec![1, 2, 3]);
@@ -535,8 +532,7 @@ mod unit_tests {
     #[test]
     fn try_each_validated_collects_errors() {
         let choices = Choice::new(1, [2, 3]);
-        let res: Validated<i32, String> =
-            choices.try_each_validated(|&x| Err(format!("err_{}", x)));
+        let res: Validated<i32, String> = choices.try_each_validated(|&x| Err(format!("err_{x}")));
         assert!(res.is_invalid());
         if let Validated::Invalid(errs) = res {
             let err_list: Vec<_> = errs.into_iter().collect();

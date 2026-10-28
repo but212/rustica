@@ -80,13 +80,11 @@ fn bench_timing(group: &mut BenchGroup) {
 
     // 3. Modify operations
     group.bench_fn("modify_same_value", || {
-        black_box(active_prism.modify(black_box(active_status.clone()), |name| name.clone()));
+        black_box(active_prism.modify(black_box(active_status.clone()), Clone::clone));
     });
 
     group.bench_fn("modify_always_same_value", || {
-        black_box(
-            active_prism.modify_always(black_box(active_status.clone()), |name| name.clone()),
-        );
+        black_box(active_prism.modify_always(black_box(active_status.clone()), Clone::clone));
     });
 
     group.bench_fn("modify_hit", || {
@@ -196,7 +194,7 @@ fn bench_memory(group: &mut BenchGroup) {
         || Some(active_status.clone()),
         |state| {
             let s = state.take().unwrap();
-            black_box(active_prism.modify(s, |name| name.clone()));
+            black_box(active_prism.modify(s, Clone::clone));
         },
     );
 

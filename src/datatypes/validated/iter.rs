@@ -12,8 +12,8 @@ impl<T, E> IntoIterator for Validated<T, E> {
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
-            Validated::Valid(a) => Some(a).into_iter(),
-            _ => None.into_iter(),
+            Self::Valid(a) => Some(a).into_iter(),
+            Self::Invalid(_) => None.into_iter(),
         }
     }
 }
@@ -59,7 +59,6 @@ where
     /// let failed: Validated<Vec<i32>, &str> = mixed.into_iter().collect();
     /// assert_eq!(failed.error_slice(), &["err1", "err2"]);
     /// ```
-    #[inline]
     fn from_iter<I: IntoIterator<Item = Validated<T, E>>>(iter: I) -> Self {
         let iter = iter.into_iter();
         let iter_hint = iter.size_hint().0;
@@ -88,66 +87,61 @@ where
         }
 
         match NonEmptyErrors::try_from_vec(errors) {
-            Some(errors) => Validated::Invalid(errors),
-            None => Validated::Valid(C::from_iter(values)),
+            Some(errors) => Self::Invalid(errors),
+            None => Self::Valid(C::from_iter(values)),
         }
     }
 }
 
 impl<T, E> Validated<T, E> {
     /// Returns an iterator over the valid value.
-    #[inline]
     pub fn iter(&self) -> Iter<'_, T> {
         match self {
-            Validated::Valid(a) => Some(a).into_iter(),
-            _ => None.into_iter(),
+            Self::Valid(a) => Some(a).into_iter(),
+            Self::Invalid(_) => None.into_iter(),
         }
     }
 
     /// Returns a mutable iterator over the valid value.
-    #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         match self {
-            Validated::Valid(a) => Some(a).into_iter(),
-            _ => None.into_iter(),
+            Self::Valid(a) => Some(a).into_iter(),
+            Self::Invalid(_) => None.into_iter(),
         }
     }
 
     /// Returns accumulated errors as a slice, or an empty slice if valid.
-    #[inline]
     pub const fn error_slice(&self) -> &[E] {
         match self {
-            Validated::Valid(_) => &[],
-            Validated::Invalid(es) => es.as_slice(),
+            Self::Valid(_) => &[],
+            Self::Invalid(es) => es.as_slice(),
         }
     }
 
     /// Returns an iterator over the errors, or an empty iterator if valid.
-    #[inline]
     pub fn iter_errors(&self) -> core::slice::Iter<'_, E> {
         self.error_slice().iter()
     }
 
     /// Returns a mutable iterator over the errors, or an empty iterator if valid.
-    #[inline]
     pub fn iter_errors_mut(&mut self) -> core::slice::IterMut<'_, E> {
         match self {
-            Validated::Invalid(es) => es.iter_mut(),
-            _ => [].iter_mut(),
+            Self::Invalid(es) => es.iter_mut(),
+            Self::Valid(_) => [].iter_mut(),
         }
     }
 
     /// Returns a reference to the errors if invalid, otherwise `None`.
-    #[inline]
     pub const fn error_payload(&self) -> Option<&NonEmptyErrors<E>> {
         match self {
-            Validated::Valid(_) => None,
-            Validated::Invalid(es) => Some(es),
+            Self::Valid(_) => None,
+            Self::Invalid(es) => Some(es),
         }
     }
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::*;
     use alloc::string::String;
@@ -172,7 +166,7 @@ mod tests {
 
         assert_eq!(invalid.error_slice(), &["e1", "e2"]);
         assert_eq!(invalid.iter_errors().count(), 2);
-        assert_eq!(invalid.error_payload().map(|p| p.len()), Some(2));
+        assert_eq!(invalid.error_payload().map(NonEmptyErrors::len), Some(2));
 
         for err in invalid.iter_errors_mut() {
             err.push('!');

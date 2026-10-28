@@ -141,7 +141,7 @@ struct Tracked(u32);
 impl Clone for Tracked {
     fn clone(&self) -> Self {
         CLONES.with(|c| c.set(c.get() + 1));
-        Tracked(self.0)
+        Self(self.0)
     }
 }
 
@@ -172,7 +172,7 @@ fn test_lens_set_preserves_sharing() {
     CLONES.with(|cnt| cnt.set(0));
     let same = lens.set(c, Tracked(42));
     assert_eq!(
-        CLONES.with(|cnt| cnt.get()),
+        CLONES.with(Cell::get),
         0,
         "set on unchanged value must perform 0 clones"
     );
@@ -181,9 +181,9 @@ fn test_lens_set_preserves_sharing() {
     // Contract C-04: Exactly 1 clone on modify identity (0 for comparison)
     let c2 = container.clone();
     CLONES.with(|cnt| cnt.set(0));
-    let same_mod = lens.modify(c2, |x| x.clone());
+    let same_mod = lens.modify(c2, Clone::clone);
     assert_eq!(
-        CLONES.with(|cnt| cnt.get()),
+        CLONES.with(Cell::get),
         1,
         "modify on unchanged value must perform exactly 1 clone for f(current)"
     );
@@ -262,7 +262,7 @@ fn test_lens_composed_view() {
     CLONES.with(|cnt| cnt.set(0));
     let same = company_code_lens.set(c, Tracked(10001));
     assert_eq!(
-        CLONES.with(|cnt| cnt.get()),
+        CLONES.with(Cell::get),
         0,
         "3-level set on unchanged value must perform 0 clones"
     );

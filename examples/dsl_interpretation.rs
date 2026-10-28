@@ -101,7 +101,7 @@ fn run_operational_monad_example() {
             tx_id: tx_id.clone(),
         }
         .suspend()
-        .map(move |_| Ok(tx_id)),
+        .map(move |()| Ok(tx_id)),
         Err(e) => Program::pure(Err(e)),
     });
 
@@ -111,7 +111,7 @@ fn run_operational_monad_example() {
     };
 
     let result = pipeline.run(&mut handler);
-    println!("Execution result: {:?}", result);
+    println!("Execution result: {result:?}");
     assert_eq!(result, Ok("tx_prod_4500".to_string()));
     assert_eq!(handler.receipts_sent.len(), 1);
     println!("Receipt sent to: {:?}", handler.receipts_sent[0]);
@@ -130,10 +130,12 @@ pub enum OrderOp {
 }
 
 impl OrderOp {
+    #[must_use]
     pub fn reserve(item: &'static str, qty: u32) -> Free<Self, ()> {
         Free::suspend(Self::ReserveItem { item, qty })
     }
 
+    #[must_use]
     pub fn payment(amount: u64) -> Free<Self, String> {
         Free::suspend(Self::ProcessPayment { amount })
     }
@@ -156,10 +158,7 @@ fn run_free_monad_example() {
             Arc::new("dry_run_tx".to_string()) as AnyValue
         },
     });
-    println!(
-        "Dry-run complete. Total estimated payment: {} cents",
-        total_cost
-    );
+    println!("Dry-run complete. Total estimated payment: {total_cost} cents");
     assert_eq!(total_cost, 9000);
 
     // Now execute the exact same program AST with a real execution interpreter!
@@ -177,7 +176,7 @@ fn run_free_monad_example() {
     });
 
     println!("Live execution tx: {final_tx}");
-    println!("Audit log entries: {:?}", audit_log);
+    println!("Audit log entries: {audit_log:?}");
     assert_eq!(final_tx, "REAL_TX_9000");
     assert_eq!(audit_log.len(), 2);
 }

@@ -47,13 +47,13 @@ pub trait Monoid: Semigroup {
 
 impl<T> Monoid for Vec<T> {
     fn empty() -> Self {
-        Vec::new()
+        Self::new()
     }
 }
 
 impl Monoid for String {
     fn empty() -> Self {
-        String::new()
+        Self::new()
     }
 }
 
@@ -70,7 +70,6 @@ impl Monoid for String {
 /// let empty: Vec<String> = vec![];
 /// assert_eq!(monoid::combine_all(empty), String::empty());
 /// ```
-#[inline]
 pub fn combine_all<M, I>(values: I) -> M
 where
     M: Monoid,
@@ -78,7 +77,7 @@ where
 {
     values
         .into_iter()
-        .reduce(|acc, x| acc.combine(x))
+        .reduce(Semigroup::combine)
         .unwrap_or_else(M::empty)
 }
 
@@ -95,17 +94,17 @@ where
 /// let zero_repeat = monoid::repeat(String::from("World"), 0);
 /// assert_eq!(zero_repeat, String::empty());
 /// ```
-#[inline]
 pub fn repeat<M>(value: M, n: usize) -> M
 where
     M: Monoid + Clone,
 {
     core::iter::repeat_n(value, n)
-        .reduce(|acc, x| acc.combine(x))
+        .reduce(Semigroup::combine)
         .unwrap_or_else(M::empty)
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::*;
     use alloc::sync::Arc;

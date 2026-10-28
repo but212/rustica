@@ -10,7 +10,7 @@ impl<F, A> Free<F, A> {
             Node::Bind(sub, _) => {
                 stack.push(sub);
             },
-            Node::Then(left, right) => {
+            Node::Then(left, right) | Node::Zip(left, right, _) => {
                 stack.push(right);
                 stack.push(left);
             },
@@ -70,13 +70,32 @@ mod tests {
     }
 
     #[test]
+    fn test_deep_right_nested_zip_with_drop() {
+        let mut acc: Free<TestCmd, i32> = Free::pure(0);
+        for _ in 0..50_000 {
+            acc = Free::<TestCmd, i32>::suspend(TestCmd::Fetch).zip_with(acc, |a, b| a + b);
+        }
+        drop(acc);
+    }
+
+    #[test]
+    fn test_deep_right_nested_apply_drop() {
+        let mut acc: Free<TestCmd, i32> = Free::pure(0);
+        for _ in 0..50_000 {
+            let func: Free<TestCmd, fn(i32) -> i32> = Free::suspend(TestCmd::Fetch);
+            acc = func.apply(acc);
+        }
+        drop(acc);
+    }
+
+    #[test]
     fn test_mixed_bind_then_drop() {
         let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
         for i in 0..20_000 {
             if i % 2 == 0 {
                 p = p.then(Free::suspend(TestCmd::Increment(1)));
             } else {
-                p = p.and_then(|_| Free::suspend(TestCmd::Increment(1)));
+                p = p.and_then(|()| Free::suspend(TestCmd::Increment(1)));
             }
         }
         drop(p);

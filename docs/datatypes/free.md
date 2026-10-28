@@ -7,11 +7,11 @@ definition from execution.
 
 - **Evaluation**: Evaluated via [`run`](Free::run) or [`try_run`](Free::try_run). An internal stack unwinds left-associated chains (`a.then(b).then(c)`), keeping call stack frames $O(1)$.
 - **Error handling**: [`try_run`](Free::try_run) returns [`FreeError`] on interpreter errors or downcast mismatches without panicking.
-- **Drop and Debug**: Traverses chains iteratively to prevent stack overflow on deep ASTs.
+- **Drop and Debug**: Traverses `Bind`, `Then`, and `Zip` spines iteratively to prevent stack overflow on deep ASTs. `Free` values captured inside a user `and_then` continuation are not visible to this traversal and drop recursively, so deep ASTs captured this way can still overflow the stack.
 
 ## Architectural Role: `Free` vs `Program`
 
-- **`Free<F, A>` (DSL AST Engine)**: Cloneable, `Arc`-backed computation trees for multi-pass interpretation and repeated execution. Inspect structure via [`is_pure`](Free::is_pure), [`is_suspend`](Free::is_suspend), [`is_bind`](Free::is_bind), [`is_then`](Free::is_then); inspect payloads via [`as_pure`](Free::as_pure), [`as_suspend`](Free::as_suspend), [`as_then`](Free::as_then). Continuations in `Bind` remain opaque. Stack safety applies to `Bind` and `Then` spines.
+- **`Free<F, A>` (DSL AST Engine)**: Cloneable, `Arc`-backed computation trees for multi-pass interpretation and repeated execution. Inspect structure via [`is_pure`](Free::is_pure), [`is_suspend`](Free::is_suspend), [`is_bind`](Free::is_bind), [`is_then`](Free::is_then); inspect payloads via [`as_pure`](Free::as_pure), [`as_suspend`](Free::as_suspend), [`as_then`](Free::as_then). Continuations in `Bind` remain opaque. Stack safety applies to `Bind`, `Then`, and `Zip` spines. `is_bind` also returns `true` for `Zip` nodes produced by `zip_with` and `apply` on non-pure operands.
 - **[`Program<H, A>`](crate::datatypes::operational::Program) (Operational Pipeline)**: Statically couples commands to handler `H` at compile time, eliminating runtime downcasts via trampoline evaluation.
 
 ## Example

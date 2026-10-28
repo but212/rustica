@@ -8,6 +8,7 @@ pub use core::{NonEmptyErrors, Validated};
 pub use iter::*;
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use super::Validated;
     use crate::traits::semigroup::Semigroup;

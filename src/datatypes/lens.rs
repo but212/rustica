@@ -23,7 +23,7 @@ where
     SetFn: Clone,
 {
     fn clone(&self) -> Self {
-        Lens {
+        Self {
             view: self.view.clone(),
             set: self.set.clone(),
             _phantom: PhantomData,
@@ -65,9 +65,8 @@ where
     /// let point = Point { x: 2.0, y: 3.0 };
     /// assert_eq!(*x_lens.view(&point), 2.0);
     /// ```
-    #[inline]
     pub const fn new(view: ViewFn, set: SetFn) -> Self {
-        Lens {
+        Self {
             view,
             set,
             _phantom: PhantomData,
@@ -75,13 +74,11 @@ where
     }
 
     /// Borrows the focused part as a reference.
-    #[inline]
     pub fn view<'s>(&self, source: &'s S) -> &'s A {
         (self.view)(source)
     }
 
     /// Clones the focused part.
-    #[inline]
     pub fn to_value(&self, source: &S) -> A
     where
         A: Clone,
@@ -92,7 +89,6 @@ where
     /// Sets the focused part, returning `source` unchanged if `value` equals current focus under `PartialEq`.
     ///
     /// For bit-exact preservation (e.g. `-0.0` vs `0.0`) or non-reflexive types (`NaN`), use [`Lens::set_always`].
-    #[inline]
     pub fn set(&self, source: S, value: A) -> S
     where
         A: PartialEq,
@@ -105,7 +101,6 @@ where
     }
 
     /// Sets the focused part unconditionally without checking equality.
-    #[inline]
     pub fn set_always(&self, source: S, value: A) -> S {
         (self.set)(source, value)
     }
@@ -113,7 +108,6 @@ where
     /// Modifies the focused part with `f`, returning `source` unchanged if output equals current focus under `PartialEq`.
     ///
     /// For bit-exact types or non-reflexive types, use [`Lens::modify_always`].
-    #[inline]
     pub fn modify<F>(&self, source: S, f: F) -> S
     where
         F: FnOnce(&A) -> A,
@@ -129,7 +123,6 @@ where
     }
 
     /// Modifies the focused part unconditionally.
-    #[inline]
     pub fn modify_always<F>(&self, source: S, f: F) -> S
     where
         F: FnOnce(&A) -> A,
@@ -139,7 +132,6 @@ where
     }
 }
 
-#[inline]
 fn compose_lens_views<S, A: 'static, B, V1, V2>(v1: V1, v2: V2) -> impl Fn(&S) -> &B + Clone
 where
     V1: Fn(&S) -> &A + Clone,
@@ -154,7 +146,6 @@ where
     SetFn: Fn(S, A) -> S + Clone,
 {
     /// Composes `self` with `other` to focus on a nested part `B`.
-    #[inline]
     #[allow(clippy::type_complexity)]
     pub fn then<B, ViewFn2, SetFn2>(
         self, other: Lens<A, B, ViewFn2, SetFn2>,
@@ -184,6 +175,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod unit_tests {
     use alloc::rc::Rc;
     use alloc::string::String;
@@ -239,12 +231,12 @@ mod unit_tests {
     #[test]
     fn test_modify_move_closure() {
         struct MoveOnly(String);
-        let move_only = MoveOnly("suffix".into());
-
         #[derive(Clone, Debug, PartialEq)]
         struct Item {
             name: String,
         }
+
+        let move_only = MoveOnly("suffix".into());
         let item_lens = Lens::new(|i: &Item| &i.name, |_i, name| Item { name });
 
         let item = Item {
@@ -268,7 +260,7 @@ mod unit_tests {
             clone_count: &'a Cell<usize>,
         }
 
-        impl<'a> Clone for HeapValue<'a> {
+        impl Clone for HeapValue<'_> {
             fn clone(&self) -> Self {
                 self.clone_count.set(self.clone_count.get() + 1);
                 Self {

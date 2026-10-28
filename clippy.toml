@@ -10,7 +10,7 @@ cognitive-complexity-threshold = 20
 doc-valid-idents = ["Monoid", "Semigroup", "fmap"]
 
 # Reasonable defaults for type and array sizes
-array-size-threshold = 8
+array-size-threshold = 512
 large-error-threshold = 100
 verbose-bit-mask-threshold = 1
 

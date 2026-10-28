@@ -65,6 +65,7 @@ impl<H, A, E> Drop for TryProgram<H, A, E> {
 }
 
 #[cfg(test)]
+#[allow(clippy::missing_panics_doc)]
 mod tests {
     use alloc::format;
     use alloc::string::{String, ToString};
