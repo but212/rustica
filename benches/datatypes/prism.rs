@@ -84,9 +84,7 @@ fn bench_timing(group: &mut BenchGroup) {
     });
 
     group.bench_fn("modify_always_same_value", || {
-        black_box(
-            active_prism.modify_always(black_box(active_status.clone()), Clone::clone),
-        );
+        black_box(active_prism.modify_always(black_box(active_status.clone()), Clone::clone));
     });
 
     group.bench_fn("modify_hit", || {

@@ -42,6 +42,7 @@ fn fmt_free<F: fmt::Debug, A: fmt::Debug>(
             Node::Suspend(cmd, _) => f.debug_tuple("Suspend").field(cmd).field(&"..").finish(),
             Node::Bind(_, _) => write!(f, "Bind(..)"),
             Node::Then(_, _) => write!(f, "Then(..)"),
+            Node::Zip(_, _, _) => write!(f, "Zip(..)"),
         };
     }
 
@@ -91,6 +92,12 @@ fn fmt_free<F: fmt::Debug, A: fmt::Debug>(
                     .finish()
             }
         },
+        Node::Zip(left, right, _) => f
+            .debug_tuple("Zip")
+            .field(&DebugFree(left, depth + 1))
+            .field(&DebugFree(right, depth + 1))
+            .field(&"<combiner>")
+            .finish(),
     }
 }
 
@@ -187,6 +194,28 @@ mod tests {
         }
         let debug_str = format!("{p:?}");
         assert_ne!(debug_str, "");
+    }
+
+    #[test]
+    fn test_zip_debug_format() {
+        let zipped: Free<TestCmd, i32> = Free::<TestCmd, i32>::suspend(TestCmd::Fetch).zip_with(
+            Free::<TestCmd, i32>::suspend(TestCmd::Increment(2)),
+            |a, b| a + b,
+        );
+        assert_eq!(
+            format!("{zipped:?}"),
+            "Zip(Suspend(Fetch, \"<continuation>\"), Suspend(Increment(2), \"<continuation>\"), \"<combiner>\")"
+        );
+    }
+
+    #[test]
+    fn test_deep_right_nested_zip_debug_bounded() {
+        let mut acc: Free<TestCmd, i32> = Free::pure(0);
+        for _ in 0..50_000 {
+            acc = Free::<TestCmd, i32>::suspend(TestCmd::Fetch).zip_with(acc, |a, b| a + b);
+        }
+        let debug_str = format!("{acc:?}");
+        assert!(debug_str.contains("Zip(..)"));
     }
 
     #[test]

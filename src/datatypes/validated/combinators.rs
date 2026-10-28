@@ -2,15 +2,6 @@ use super::core::NonEmptyErrors;
 use crate::datatypes::validated::Validated;
 use crate::traits::semigroup::Semigroup;
 
-fn merge_errors<E>(
-    a: Option<NonEmptyErrors<E>>, b: Option<NonEmptyErrors<E>>,
-) -> Option<NonEmptyErrors<E>> {
-    match (a, b) {
-        (Some(x), Some(y)) => Some(x.combine(y)),
-        (x, y) => x.or(y),
-    }
-}
-
 impl<T, E> Validated<T, E> {
     /// Maps `f` over the valid value, leaving errors unchanged.
     ///
@@ -231,7 +222,7 @@ impl<T, E> Validated<T, E> {
     /// assert_eq!(valid1.combine_errors(valid2), None);
     /// ```
     pub fn combine_errors(self, other: Self) -> Option<NonEmptyErrors<E>> {
-        merge_errors(self.into_error_opt(), other.into_error_opt())
+        self.into_error_opt().combine(other.into_error_opt())
     }
 
     /// Recovers using a closure given all accumulated errors.

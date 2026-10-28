@@ -17,6 +17,10 @@
 - **`Choice::flatten` (Breaking)**: Removed. Use `try_flatten().ok()` or `try_flatten()` to keep the `ChoiceError`. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
 - **`datatypes::error` Module (Breaking)**: Removed the backward-compatibility alias. Use `rustica::datatypes::{ChoiceError, FreeError}` or `rustica::prelude::*`. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
 
+### Fixed
+
+- **`Free` Zip Drop Stack Overflow**: `zip_with` and `apply` on non-pure operands now build a dedicated `Zip` AST node instead of capturing the right-hand computation in a continuation. Dropping deep right-nested `zip_with`/`apply` chains (tested at 50,000 levels) no longer overflows the stack. `Free` `Debug` output renders these nodes as `Zip(..)` instead of `Bind(..)`. No public API change. Deep ASTs captured inside user `and_then` continuations can still overflow on drop; see [`free.md`](docs/datatypes/free.md).
+
 ## [0.21.0]
 
 ### Changed
