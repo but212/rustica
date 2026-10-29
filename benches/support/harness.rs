@@ -28,26 +28,17 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// A global tracking allocator to measure heap memory allocations.
 pub struct TrackingAllocator;
-static CURRENT_ALLOCATED: AtomicUsize = AtomicUsize::new(0);
 static TOTAL_ALLOCATED: AtomicUsize = AtomicUsize::new(0);
 
 unsafe impl GlobalAlloc for TrackingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        CURRENT_ALLOCATED.fetch_add(layout.size(), Ordering::Relaxed);
         TOTAL_ALLOCATED.fetch_add(layout.size(), Ordering::Relaxed);
         unsafe { System.alloc(layout) }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        CURRENT_ALLOCATED.fetch_sub(layout.size(), Ordering::Relaxed);
         unsafe { System.dealloc(ptr, layout) }
     }
-}
-
-/// Returns the current number of allocated heap bytes.
-#[must_use]
-pub fn current_allocated_bytes() -> usize {
-    CURRENT_ALLOCATED.load(Ordering::Relaxed)
 }
 
 /// Returns the cumulative number of allocated heap bytes.

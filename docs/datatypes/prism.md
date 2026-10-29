@@ -53,7 +53,7 @@ assert_eq!(updated, Status::Pending(8));
 - **Owned Extraction**: Clones focus per `C-CONV` (`to_value(&s) -> Option<A>`).
 - **Bidirectional**: Constructs sum types from variant focus (`review(a) -> S`).
 - **Short-Circuiting**: `set` and `modify` return `source` unchanged when values match under `PartialEq`.
-- **Composable**: `then` chains prisms across nested sum types.
+- **Composable**: `then` chains prisms across nested sum types and requires the intermediate focus type to be `'static`.
 
 ## Type Class Laws
 

@@ -127,8 +127,7 @@ impl<F, A> Free<F, A> {
     }
 
     /// Converts this computation into a type-erased `Free<F, AnyValue>`.
-    #[allow(clippy::wrong_self_convention)]
-    fn into_any(&self) -> Free<F, AnyValue>
+    fn to_any(&self) -> Free<F, AnyValue>
     where
         F: Send + Sync + Clone + 'static,
         A: Send + Sync + Clone + 'static,
@@ -139,14 +138,14 @@ impl<F, A> Free<F, A> {
         }
 
         match self.node() {
-            Node::Pure(a) => Free::from_node(Node::Pure(Arc::new(a.clone()) as AnyValue)),
+            Node::Pure(a) => Free::from_node(Node::Pure(any_value(a.clone()))),
             Node::Suspend(cmd, cont) => {
                 let cont_clone = Arc::clone(cont);
                 Free::from_node(Node::Suspend(
                     cmd.clone(),
                     Arc::new(move |res| {
                         let a = cont_clone(res)?;
-                        Ok(Arc::new(a) as AnyValue)
+                        Ok(any_value(a))
                     }),
                 ))
             },
@@ -154,7 +153,7 @@ impl<F, A> Free<F, A> {
                 let cont_clone = Arc::clone(cont);
                 Free::from_node(Node::Bind(
                     Arc::clone(sub),
-                    Arc::new(move |res| cont_clone(res).into_any()),
+                    Arc::new(move |res| cont_clone(res).to_any()),
                 ))
             },
             Node::Then(left, right) => {
@@ -165,9 +164,7 @@ impl<F, A> Free<F, A> {
                 Free::from_node(Node::Zip(
                     Arc::clone(left),
                     Arc::clone(right),
-                    Arc::new(move |x: AnyValue, y: AnyValue| {
-                        Arc::new(combine_clone(x, y)) as AnyValue
-                    }),
+                    Arc::new(move |x: AnyValue, y: AnyValue| any_value(combine_clone(x, y))),
                 ))
             },
         }
@@ -289,7 +286,7 @@ mod tests {
     fn test_no_double_erasure_pure() {
         let val: AnyValue = any_value(42_i32);
         let prog: Free<TestCmd, AnyValue> = Free::pure(val);
-        let erased: Free<TestCmd, AnyValue> = prog.into_any();
+        let erased: Free<TestCmd, AnyValue> = prog.to_any();
         let res = erased.run(|_| any_value(()));
         assert_eq!(*res.downcast_ref::<i32>().unwrap(), 42);
     }

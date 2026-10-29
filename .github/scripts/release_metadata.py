@@ -23,22 +23,10 @@ class ReleaseEntry:
         if not self.body:
             raise ValueError(f"CHANGELOG entry for {self.version} is empty")
 
-    def ensure_non_empty(self) -> None:
-        if not self.body:
-            raise ValueError(f"CHANGELOG entry for {self.version} is empty")
-
 
 @dataclass(frozen=True)
 class Changelog:
     _raw_entries: dict[str, tuple[str | None, str]]
-
-    @property
-    def entries(self) -> dict[str, ReleaseEntry]:
-        return {
-            version: ReleaseEntry(version=version, date=date, body=body)
-            for version, (date, body) in self._raw_entries.items()
-            if body
-        }
 
     @classmethod
     def from_markdown(cls, markdown: str) -> Changelog:
@@ -80,10 +68,6 @@ class Changelog:
 
     def extract_body(self, version: str) -> str:
         return self.get_entry(version).body
-
-
-def extract_release_body(version: str, changelog: str) -> str:
-    return Changelog.from_markdown(changelog).extract_body(version)
 
 
 def main() -> int:

@@ -102,6 +102,10 @@ pub struct TryProgram<H, A, E> {
 }
 
 impl<H, A, E> TryProgram<H, A, E> {
+    const fn from_node(node: Node<H, A, E>) -> Self {
+        Self { node: Some(node) }
+    }
+
     /// Takes ownership of the node, leaving `None` transiently.
     ///
     /// Invariant: `node` is `Some` on all observable values; private ownership ensures unreachable panic.
@@ -125,19 +129,17 @@ impl<H: 'static, E: 'static> TryProgram<H, (), E> {
         C: Command,
         H: TryHandler<C, E>,
     {
-        TryProgram {
-            node: Some(Node::Suspend(
-                Box::new(move |handler: &mut H| {
-                    let out = handler.try_handle(cmd)?;
-                    Ok(Box::new(out) as AnyBox)
-                }),
-                Box::new(|any_val: AnyBox| {
-                    *any_val
-                        .downcast::<C::Output>()
-                        .expect("statically guaranteed command output type")
-                }),
-            )),
-        }
+        TryProgram::from_node(Node::Suspend(
+            Box::new(move |handler: &mut H| {
+                let out = handler.try_handle(cmd)?;
+                Ok(Box::new(out) as AnyBox)
+            }),
+            Box::new(|any_val: AnyBox| {
+                *any_val
+                    .downcast::<C::Output>()
+                    .expect("statically guaranteed command output type")
+            }),
+        ))
     }
 }
 
@@ -145,9 +147,7 @@ impl<H: 'static, E: 'static> TryProgram<H, (), E> {
 impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
     /// Wraps a pure value in a `TryProgram`.
     pub const fn pure(val: A) -> Self {
-        Self {
-            node: Some(Node::Pure(val)),
-        }
+        Self::from_node(Node::Pure(val))
     }
 
     /// Transforms the inner value with `f`.
@@ -170,18 +170,16 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
         match self.take_node() {
             Node::Pure(a) => f(a),
             other => {
-                let any_prog: TryProgram<H, AnyBox, E> = Self { node: Some(other) }.into_any();
-                TryProgram {
-                    node: Some(Node::Bind(
-                        Box::new(any_prog),
-                        Box::new(move |any_val: AnyBox| {
-                            let a = *any_val
-                                .downcast::<A>()
-                                .expect("statically guaranteed bind parameter type");
-                            f(a)
-                        }),
-                    )),
-                }
+                let any_prog: TryProgram<H, AnyBox, E> = Self::from_node(other).into_any();
+                TryProgram::from_node(Node::Bind(
+                    Box::new(any_prog),
+                    Box::new(move |any_val: AnyBox| {
+                        let a = *any_val
+                            .downcast::<A>()
+                            .expect("statically guaranteed bind parameter type");
+                        f(a)
+                    }),
+                ))
             },
         }
     }
@@ -191,20 +189,18 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
         match self.take_node() {
             Node::Pure(_) => next,
             node => {
-                let mut previous = Self { node: Some(node) }.into_any();
+                let mut previous = Self::from_node(node).into_any();
                 let steps = match previous.take_node() {
                     Node::Then(mut steps, tail) => {
                         steps.rest.push(*tail);
                         steps
                     },
                     node => Steps {
-                        head: Box::new(TryProgram { node: Some(node) }),
+                        head: Box::new(TryProgram::from_node(node)),
                         rest: Vec::new(),
                     },
                 };
-                TryProgram {
-                    node: Some(Node::Then(steps, Box::new(next))),
-                }
+                TryProgram::from_node(Node::Then(steps, Box::new(next)))
             },
         }
     }
@@ -228,27 +224,21 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
 
         let mut erased = match node {
             Node::Pure(a) => TryProgram::pure(Box::new(a) as AnyBox),
-            Node::Suspend(runner, cont) => TryProgram {
-                node: Some(Node::Suspend(
-                    runner,
-                    Box::new(move |res| Box::new(cont(res)) as AnyBox),
-                )),
-            },
-            Node::Bind(sub, cont) => TryProgram {
-                node: Some(Node::Bind(sub, Box::new(move |res| cont(res).into_any()))),
+            Node::Suspend(runner, cont) => TryProgram::from_node(Node::Suspend(
+                runner,
+                Box::new(move |res| Box::new(cont(res)) as AnyBox),
+            )),
+            Node::Bind(sub, cont) => {
+                TryProgram::from_node(Node::Bind(sub, Box::new(move |res| cont(res).into_any())))
             },
             Node::Then(_, _) => unreachable!("Then nodes are collected above"),
         };
 
         for subs in remaining_then_chunks.into_iter().rev() {
-            erased = TryProgram {
-                node: Some(Node::Then(subs, Box::new(erased))),
-            };
+            erased = TryProgram::from_node(Node::Then(subs, Box::new(erased)));
         }
         if let Some(subs) = first_then_chunk {
-            erased = TryProgram {
-                node: Some(Node::Then(subs, Box::new(erased))),
-            };
+            erased = TryProgram::from_node(Node::Then(subs, Box::new(erased)));
         }
         erased
     }

@@ -4,6 +4,9 @@ use super::{AnyValue, Free, Node, downcast_any_value};
 
 impl<F, A> Free<F, A> {
     /// Maps a function over the result value.
+    ///
+    /// Evaluates `f(a)` immediately if `self` is pure. Otherwise, constructs a `Bind` node
+    /// evaluated iteratively by the trampoline in [`run`](Self::run).
     pub fn map<B, Func>(&self, f: Func) -> Free<F, B>
     where
         F: Send + Sync + Clone + 'static,
@@ -11,21 +14,7 @@ impl<F, A> Free<F, A> {
         B: Send + Sync + Clone + 'static,
         Func: Fn(A) -> B + Send + Sync + 'static,
     {
-        match self.node() {
-            Node::Pure(a) => Free::pure(f(a.clone())),
-            Node::Suspend(cmd, cont) => {
-                let f_arc = Arc::new(f);
-                let cont_clone = Arc::clone(cont);
-                Free::from_node(Node::Suspend(
-                    cmd.clone(),
-                    Arc::new(move |res| cont_clone(res).map(|a| f_arc(a))),
-                ))
-            },
-            _ => {
-                let f_arc = Arc::new(f);
-                self.and_then(move |a| Free::pure(f_arc(a)))
-            },
-        }
+        self.and_then(move |a| Free::pure(f(a)))
     }
 
     /// Sequences a computation from the result of `self`.
@@ -48,7 +37,7 @@ impl<F, A> Free<F, A> {
             f(a.clone())
         } else {
             let f_arc = Arc::new(f);
-            let sub = Arc::new(self.into_any());
+            let sub = Arc::new(self.to_any());
             Free::from_node(Node::Bind(
                 sub,
                 Arc::new(move |any_val: AnyValue| {
@@ -72,8 +61,8 @@ impl<F, A> Free<F, A> {
         if self.is_pure() {
             return next;
         }
-        let left = Arc::new(self.into_any());
-        let right = Arc::new(next.into_any());
+        let left = Arc::new(self.to_any());
+        let right = Arc::new(next.to_any());
         Free::from_node(Node::Then(left, right))
     }
 
@@ -105,8 +94,8 @@ impl<F, A> Free<F, A> {
             let a = a.clone();
             return other.map(move |b| f(a.clone(), b));
         }
-        let left = Arc::new(self.into_any());
-        let right = Arc::new(other.into_any());
+        let left = Arc::new(self.to_any());
+        let right = Arc::new(other.to_any());
         Free::from_node(Node::Zip(
             left,
             right,
@@ -122,7 +111,7 @@ impl<F, A> Free<F, A> {
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc, clippy::cast_precision_loss)]
 mod tests {
-    use core::sync::atomic::{AtomicUsize, Ordering};
+    use core::sync::atomic::Ordering;
 
     use super::*;
     use crate::datatypes::free::any_value;
@@ -220,11 +209,7 @@ mod tests {
 
     #[test]
     fn test_then_construction_linearity() {
-        let counter = Arc::new(AtomicUsize::new(0));
-        let cmd = CloneCountingCmd {
-            id: 1,
-            clones: Arc::clone(&counter),
-        };
+        let (cmd, counter) = counting_cmd(1);
 
         // Measure n = 1000
         counter.store(0, Ordering::SeqCst);

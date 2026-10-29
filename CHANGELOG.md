@@ -4,6 +4,7 @@
 
 ### Changed
 
+- **`Free` Direct Root Trampoline Dispatch**: `Free::run` and `Free::try_run` evaluate `Pure`/`Suspend` roots directly; other roots go through `into_any()`. Direct evaluation of `Pure` and `Suspend` roots avoids trampoline stack allocations, closure adapters, and `AnyValue` downcasting.
 - **Internal Refactor**: `Operational` `Then` nodes store a non-empty prefix type (`Steps`) so an empty prefix is unrepresentable; `Choice::try_each_validated`, `monoid::combine_all`, and the `Free` debug spine counting were simplified. The `operational` module is split into the `operational/` directory with no public API change. Behavior is unchanged.
 
 ### Removed
@@ -19,6 +20,7 @@
 
 ### Fixed
 
+- **`Free::map` Stack Safety on Suspend**: `Free::map` now delegates to `self.and_then(move |a| Free::pure(f(a)))` instead of nesting closures recursively inside `Node::Suspend`. Evaluating (`run`/`try_run`), dropping, and debugging deep `.map` chains on suspended effects (tested at 25,000 run and 50,000 drop levels) no longer overflows the call stack.
 - **`Free` Zip Drop Stack Overflow**: `zip_with` and `apply` on non-pure operands now build a dedicated `Zip` AST node instead of capturing the right-hand computation in a continuation. Dropping deep right-nested `zip_with`/`apply` chains (tested at 50,000 levels) no longer overflows the stack. `Free` `Debug` output renders these nodes as `Zip(..)` instead of `Bind(..)`. No public API change. Deep ASTs captured inside user `and_then` continuations can still overflow on drop; see [`free.md`](docs/datatypes/free.md).
 
 ## [0.21.0]
