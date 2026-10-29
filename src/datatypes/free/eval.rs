@@ -27,30 +27,15 @@ impl<F, A> Free<F, A> {
         A: Send + Sync + Clone + 'static,
         Interp: FnMut(F) -> Result<AnyValue, E>,
     {
-        let (mut cur, mut stack): (Node<F, AnyValue>, Vec<Frame<F>>) = match self.node() {
+        let mut cur: Node<F, AnyValue> = match self.node() {
             Node::Pure(a) => return Ok(a.clone()),
             Node::Suspend(cmd, cont) => {
                 let effect_res = interp(cmd.clone()).map_err(FreeError::Interpreter)?;
                 return cont(effect_res).map_err(|expected| FreeError::TypeMismatch { expected });
             },
-            Node::Bind(sub, cont) => {
-                let cont_clone = Arc::clone(cont);
-                let frame = Frame::BindCont(Arc::new(move |res| cont_clone(res).into_any()));
-                (unwrap_arc(Arc::clone(sub)).take_node(), alloc::vec![frame])
-            },
-            Node::Then(left, right) => {
-                let frame = Frame::ThenNext(Arc::clone(right));
-                (unwrap_arc(Arc::clone(left)).take_node(), alloc::vec![frame])
-            },
-            Node::Zip(left, right, combine) => {
-                let combine_clone = Arc::clone(combine);
-                let frame = Frame::ZipRight(
-                    Arc::clone(right),
-                    Arc::new(move |x, y| Arc::new(combine_clone(x, y)) as AnyValue),
-                );
-                (unwrap_arc(Arc::clone(left)).take_node(), alloc::vec![frame])
-            },
+            Node::Bind(..) | Node::Then(..) | Node::Zip(..) => self.to_any().take_node(),
         };
+        let mut stack: Vec<Frame<F>> = Vec::new();
 
         loop {
             let value = match cur {
@@ -146,7 +131,7 @@ impl<F, A> Free<F, A> {
 mod tests {
     use alloc::format;
     use alloc::string::String;
-    use core::sync::atomic::{AtomicUsize, Ordering};
+    use core::sync::atomic::Ordering;
 
     use super::*;
     use crate::datatypes::free::any_value;
@@ -315,11 +300,7 @@ mod tests {
 
     #[test]
     fn test_free_trampoline_unshared_bind_no_clone() {
-        let counter = Arc::new(AtomicUsize::new(0));
-        let cmd = CloneCountingCmd {
-            id: 10,
-            clones: Arc::clone(&counter),
-        };
+        let (cmd, counter) = counting_cmd(10);
 
         // Chained Bind computation with 2 Bind layers
         let prog: Free<CloneCountingCmd, i32> = Free::suspend(cmd)
@@ -338,11 +319,7 @@ mod tests {
 
     #[test]
     fn test_then_chain_run_phase_clones() {
-        let counter = Arc::new(AtomicUsize::new(0));
-        let cmd = CloneCountingCmd {
-            id: 1,
-            clones: Arc::clone(&counter),
-        };
+        let (cmd, counter) = counting_cmd(1);
 
         let mut p: Free<CloneCountingCmd, usize> = Free::suspend(cmd.clone());
         for _ in 1..10 {
@@ -399,10 +376,7 @@ mod tests {
 
     #[test]
     fn test_deep_then_run() {
-        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
-        for _ in 0..25_000 {
-            p = p.then(Free::suspend(TestCmd::Increment(1)));
-        }
+        let p = then_chain(25_000);
         let mut count = 0;
         p.run(|cmd| match cmd {
             TestCmd::Increment(n) => {
@@ -445,10 +419,7 @@ mod tests {
 
     #[test]
     fn test_deep_right_nested_zip_with_run() {
-        let mut acc: Free<TestCmd, i32> = Free::pure(0);
-        for _ in 0..25_000 {
-            acc = Free::<TestCmd, i32>::suspend(TestCmd::Fetch).zip_with(acc, |a, b| a + b);
-        }
+        let acc = right_zip_chain(25_000);
         let total = acc.run(|cmd| match cmd {
             TestCmd::Fetch => any_value(1_i32),
             TestCmd::Increment(_) => any_value(()),
@@ -577,10 +548,7 @@ mod tests {
 
     #[test]
     fn test_deep_map_on_suspend_run() {
-        let mut p: Free<TestCmd, i32> = Free::suspend(TestCmd::Fetch);
-        for _ in 0..25_000 {
-            p = p.map(|x| x + 1);
-        }
+        let p = map_chain(25_000);
         let total = p.run(|cmd| match cmd {
             TestCmd::Fetch => any_value(1_i32),
             TestCmd::Increment(_) => any_value(()),
@@ -590,10 +558,7 @@ mod tests {
 
     #[test]
     fn test_deep_pure_left_zip_with_suspend_run() {
-        let mut acc: Free<TestCmd, i32> = Free::suspend(TestCmd::Fetch);
-        for _ in 0..25_000 {
-            acc = Free::<TestCmd, i32>::pure(1).zip_with(acc, |a, b| a + b);
-        }
+        let acc = pure_left_zip_chain(25_000);
         let total = acc.run(|cmd| match cmd {
             TestCmd::Fetch => any_value(1_i32),
             TestCmd::Increment(_) => any_value(()),
@@ -613,11 +578,7 @@ mod tests {
 
     #[test]
     fn test_suspend_run_preserves_single_clone() {
-        let counter = Arc::new(AtomicUsize::new(0));
-        let cmd = CloneCountingCmd {
-            id: 42,
-            clones: Arc::clone(&counter),
-        };
+        let (cmd, counter) = counting_cmd(42);
         let p: Free<CloneCountingCmd, usize> = Free::suspend(cmd);
 
         counter.store(0, Ordering::SeqCst);
@@ -650,5 +611,15 @@ mod tests {
             });
             assert_eq!(res, (2 + 3 + 10) * 2);
         }
+    }
+
+    #[test]
+    fn test_root_zip_anyvalue_not_double_erased() {
+        let prog: Free<TestCmd, AnyValue> = Free::<TestCmd, i32>::suspend(TestCmd::Fetch)
+            .zip_with(Free::<TestCmd, i32>::suspend(TestCmd::Fetch), |a, b| {
+                any_value(a + b)
+            });
+        let res = prog.run(|_| any_value(1_i32));
+        assert_eq!(res.downcast_ref::<i32>(), Some(&2));
     }
 }

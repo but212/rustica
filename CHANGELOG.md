@@ -4,7 +4,7 @@
 
 ### Changed
 
-- **`Free` Direct Root Trampoline Dispatch**: `Free::run` and `Free::try_run` now match directly on the root computation node rather than cloning the entire top-level AST into `into_any()`. Direct evaluation of `Pure` and `Suspend` roots avoids trampoline stack allocations, closure adapters, and `AnyValue` downcasting.
+- **`Free` Direct Root Trampoline Dispatch**: `Free::run` and `Free::try_run` evaluate `Pure`/`Suspend` roots directly; other roots go through `into_any()`. Direct evaluation of `Pure` and `Suspend` roots avoids trampoline stack allocations, closure adapters, and `AnyValue` downcasting.
 - **Internal Refactor**: `Operational` `Then` nodes store a non-empty prefix type (`Steps`) so an empty prefix is unrepresentable; `Choice::try_each_validated`, `monoid::combine_all`, and the `Free` debug spine counting were simplified. The `operational` module is split into the `operational/` directory with no public API change. Behavior is unchanged.
 
 ### Removed

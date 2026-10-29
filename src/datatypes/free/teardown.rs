@@ -41,20 +41,14 @@ mod tests {
 
     #[test]
     fn test_deep_free_drop_with_clones() {
-        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
-        for _ in 0..30_000 {
-            p = p.then(Free::suspend(TestCmd::Increment(1)));
-        }
+        let p = then_chain(30_000);
         let q = p.clone();
         // Drop clone first, then original
         drop(q);
         drop(p);
 
         // Now drop original first, then clone
-        let mut p2: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
-        for _ in 0..30_000 {
-            p2 = p2.then(Free::suspend(TestCmd::Increment(1)));
-        }
+        let p2 = then_chain(30_000);
         let q2 = p2.clone();
         drop(p2);
         drop(q2);
@@ -62,20 +56,12 @@ mod tests {
 
     #[test]
     fn test_deep_then_drop() {
-        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
-        for _ in 0..50_000 {
-            p = p.then(Free::suspend(TestCmd::Increment(1)));
-        }
-        drop(p);
+        drop(then_chain(50_000));
     }
 
     #[test]
     fn test_deep_right_nested_zip_with_drop() {
-        let mut acc: Free<TestCmd, i32> = Free::pure(0);
-        for _ in 0..50_000 {
-            acc = Free::<TestCmd, i32>::suspend(TestCmd::Fetch).zip_with(acc, |a, b| a + b);
-        }
-        drop(acc);
+        drop(right_zip_chain(50_000));
     }
 
     #[test]
@@ -103,19 +89,11 @@ mod tests {
 
     #[test]
     fn test_deep_map_on_suspend_drop() {
-        let mut p: Free<TestCmd, i32> = Free::suspend(TestCmd::Fetch);
-        for _ in 0..50_000 {
-            p = p.map(|x| x + 1);
-        }
-        drop(p);
+        drop(map_chain(50_000));
     }
 
     #[test]
     fn test_deep_pure_left_zip_with_suspend_drop() {
-        let mut acc: Free<TestCmd, i32> = Free::suspend(TestCmd::Fetch);
-        for _ in 0..50_000 {
-            acc = Free::<TestCmd, i32>::pure(1).zip_with(acc, |a, b| a + b);
-        }
-        drop(acc);
+        drop(pure_left_zip_chain(50_000));
     }
 }

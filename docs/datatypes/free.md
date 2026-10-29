@@ -7,7 +7,7 @@ definition from execution.
 
 - **Evaluation**: Evaluated via [`run`](Free::run) or [`try_run`](Free::try_run). An internal stack unwinds left-associated chains (`a.then(b).then(c)`), keeping call stack frames $O(1)$.
 - **Error handling**: [`try_run`](Free::try_run) returns [`FreeError`] on interpreter errors or downcast mismatches without panicking.
-- **Drop and Debug**: Traverses `Bind`, `Then`, and `Zip` spines iteratively to prevent stack overflow on deep ASTs. `Free` values captured inside a user `and_then` continuation are not visible to this traversal and drop recursively, so deep ASTs captured this way can still overflow the stack.
+- **Drop and Debug**: Drop traverses `Bind`, `Then`, and `Zip` spines iteratively to prevent stack overflow on deep ASTs. Debug counts spines iteratively but renders at most 8 nesting levels and summarizes spines longer than 10 as `depth: N`. `Free` values captured inside a user `and_then` continuation are not visible to this traversal and drop recursively, so deep ASTs captured this way can still overflow the stack.
 
 ## Architectural Role: `Free` vs `Program`
 

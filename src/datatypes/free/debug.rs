@@ -164,20 +164,14 @@ mod tests {
 
     #[test]
     fn test_deep_debug_format_stack_safety() {
-        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
-        for _ in 0..50_000 {
-            p = p.then(Free::suspend(TestCmd::Increment(1)));
-        }
+        let p = then_chain(50_000);
         let debug_str = format!("{p:?}");
         assert!(debug_str.contains("depth: 50000"));
     }
 
     #[test]
     fn test_deep_then_debug() {
-        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
-        for _ in 0..50_000 {
-            p = p.then(Free::suspend(TestCmd::Increment(1)));
-        }
+        let p = then_chain(50_000);
         let debug_str = format!("{p:?}");
         assert!(debug_str.contains("Then(depth: 50000)"));
     }
@@ -210,10 +204,7 @@ mod tests {
 
     #[test]
     fn test_deep_right_nested_zip_debug_bounded() {
-        let mut acc: Free<TestCmd, i32> = Free::pure(0);
-        for _ in 0..50_000 {
-            acc = Free::<TestCmd, i32>::suspend(TestCmd::Fetch).zip_with(acc, |a, b| a + b);
-        }
+        let acc = right_zip_chain(50_000);
         let debug_str = format!("{acc:?}");
         assert!(debug_str.contains("Zip(..)"));
     }

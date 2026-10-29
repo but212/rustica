@@ -173,8 +173,8 @@ impl<T, E> Validated<T, E> {
     ///
     /// # Panics
     ///
-    /// This function does not panic in normal usage; internal downcasts and error
-    /// accumulation rely on statically verified non-empty invariants.
+    /// Never panics; the fallback arm is reached only when at least one input is
+    /// `Invalid`, so `combine_multiple` always returns `Some`.
     pub fn zip_with3<T2, T3, R, F>(
         self, second: Validated<T2, E>, third: Validated<T3, E>, f: F,
     ) -> Validated<R, E>

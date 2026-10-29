@@ -44,7 +44,7 @@ assert_eq!(older.age, 31);
 - **Owned Extraction**: Clones focus per `C-CONV` (`to_value(&s) -> A`).
 - **Short-Circuiting**: `set` and `modify` return `source` unchanged when values match under `PartialEq`.
 - **Bidirectional**: Pairs field inspection with product updates.
-- **Composable**: `then` chains lenses across nested structures.
+- **Composable**: `then` chains lenses across nested structures and requires the intermediate focus type to be `'static`.
 
 ## Type Class Laws
 

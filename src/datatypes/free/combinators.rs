@@ -37,7 +37,7 @@ impl<F, A> Free<F, A> {
             f(a.clone())
         } else {
             let f_arc = Arc::new(f);
-            let sub = Arc::new(self.into_any());
+            let sub = Arc::new(self.to_any());
             Free::from_node(Node::Bind(
                 sub,
                 Arc::new(move |any_val: AnyValue| {
@@ -61,8 +61,8 @@ impl<F, A> Free<F, A> {
         if self.is_pure() {
             return next;
         }
-        let left = Arc::new(self.into_any());
-        let right = Arc::new(next.into_any());
+        let left = Arc::new(self.to_any());
+        let right = Arc::new(next.to_any());
         Free::from_node(Node::Then(left, right))
     }
 
@@ -94,8 +94,8 @@ impl<F, A> Free<F, A> {
             let a = a.clone();
             return other.map(move |b| f(a.clone(), b));
         }
-        let left = Arc::new(self.into_any());
-        let right = Arc::new(other.into_any());
+        let left = Arc::new(self.to_any());
+        let right = Arc::new(other.to_any());
         Free::from_node(Node::Zip(
             left,
             right,
@@ -111,7 +111,7 @@ impl<F, A> Free<F, A> {
 #[cfg(test)]
 #[allow(clippy::missing_panics_doc, clippy::cast_precision_loss)]
 mod tests {
-    use core::sync::atomic::{AtomicUsize, Ordering};
+    use core::sync::atomic::Ordering;
 
     use super::*;
     use crate::datatypes::free::any_value;
@@ -209,11 +209,7 @@ mod tests {
 
     #[test]
     fn test_then_construction_linearity() {
-        let counter = Arc::new(AtomicUsize::new(0));
-        let cmd = CloneCountingCmd {
-            id: 1,
-            clones: Arc::clone(&counter),
-        };
+        let (cmd, counter) = counting_cmd(1);
 
         // Measure n = 1000
         counter.store(0, Ordering::SeqCst);
