@@ -4,6 +4,9 @@ use super::{AnyValue, Free, Node, downcast_any_value};
 
 impl<F, A> Free<F, A> {
     /// Maps a function over the result value.
+    ///
+    /// Evaluates `f(a)` immediately if `self` is pure. Otherwise, constructs a `Bind` node
+    /// evaluated iteratively by the trampoline in [`run`](Self::run).
     pub fn map<B, Func>(&self, f: Func) -> Free<F, B>
     where
         F: Send + Sync + Clone + 'static,
@@ -11,21 +14,7 @@ impl<F, A> Free<F, A> {
         B: Send + Sync + Clone + 'static,
         Func: Fn(A) -> B + Send + Sync + 'static,
     {
-        match self.node() {
-            Node::Pure(a) => Free::pure(f(a.clone())),
-            Node::Suspend(cmd, cont) => {
-                let f_arc = Arc::new(f);
-                let cont_clone = Arc::clone(cont);
-                Free::from_node(Node::Suspend(
-                    cmd.clone(),
-                    Arc::new(move |res| cont_clone(res).map(|a| f_arc(a))),
-                ))
-            },
-            _ => {
-                let f_arc = Arc::new(f);
-                self.and_then(move |a| Free::pure(f_arc(a)))
-            },
-        }
+        self.and_then(move |a| Free::pure(f(a)))
     }
 
     /// Sequences a computation from the result of `self`.

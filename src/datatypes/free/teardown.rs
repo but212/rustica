@@ -100,4 +100,22 @@ mod tests {
         }
         drop(p);
     }
+
+    #[test]
+    fn test_deep_map_on_suspend_drop() {
+        let mut p: Free<TestCmd, i32> = Free::suspend(TestCmd::Fetch);
+        for _ in 0..50_000 {
+            p = p.map(|x| x + 1);
+        }
+        drop(p);
+    }
+
+    #[test]
+    fn test_deep_pure_left_zip_with_suspend_drop() {
+        let mut acc: Free<TestCmd, i32> = Free::suspend(TestCmd::Fetch);
+        for _ in 0..50_000 {
+            acc = Free::<TestCmd, i32>::pure(1).zip_with(acc, |a, b| a + b);
+        }
+        drop(acc);
+    }
 }
