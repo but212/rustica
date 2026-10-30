@@ -265,9 +265,7 @@ where
     }
 
     /// Parses content enclosed by open and close delimiters.
-    pub fn between<L, R, Open, Close>(
-        open: Open, close: Close, content: Self,
-    ) -> Self
+    pub fn between<L, R, Open, Close>(open: Open, close: Close, content: Self) -> Self
     where
         Open: Into<Parser<I, L>>,
         Close: Into<Parser<I, R>>,
