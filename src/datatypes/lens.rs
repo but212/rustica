@@ -93,11 +93,7 @@ where
     where
         A: PartialEq,
     {
-        if (self.view)(&source) == &value {
-            source
-        } else {
-            (self.set)(source, value)
-        }
+        self.modify(source, |_| value)
     }
 
     /// Sets the focused part unconditionally without checking equality.
