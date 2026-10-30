@@ -17,6 +17,7 @@
 - **`Prism::set_with` & `Prism::modify_with` (Breaking)**: Removed. Use `set_always` / `modify_always` (or `set` / `modify`). Non-focus fields are no longer preserved by the prism; the whole variant payload is the focus. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
 - **`Choice::flatten` (Breaking)**: Removed. Use `try_flatten().ok()` or `try_flatten()` to keep the `ChoiceError`. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
 - **`datatypes::error` Module (Breaking)**: Removed the backward-compatibility alias. Use `rustica::datatypes::{ChoiceError, FreeError}` or `rustica::prelude::*`. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
+- **`validated::core` Module Path (Breaking)**: Made private without deprecation. A public module named `core` shadows the `core` crate under `use rustica::datatypes::validated::*`, so `core::mem::…` stops compiling; a deprecated module still shadows it. Use `rustica::datatypes::validated::{Validated, NonEmptyErrors}`. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
 
 ### Fixed
 

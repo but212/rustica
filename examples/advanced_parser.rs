@@ -26,7 +26,7 @@ use std::sync::Arc;
 // ============================================================================
 
 /// Parse error with location information
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ParseError {
     pub message: String,
     pub position: usize,
@@ -53,7 +53,7 @@ impl Display for ParseError {
 
 impl ParseError {
     pub fn new(message: impl Into<String>, position: usize) -> Self {
-        ParseError {
+        Self {
             message: message.into(),
             position,
             expected: None,
@@ -90,7 +90,7 @@ where
     O: Clone + Debug,
 {
     fn clone(&self) -> Self {
-        Parser {
+        Self {
             parse_fn: Arc::clone(&self.parse_fn),
         }
     }
@@ -105,7 +105,7 @@ where
     where
         F: Fn(&[I]) -> Option<Choice<(O, &[I])>> + Send + Sync + 'static,
     {
-        Parser {
+        Self {
             parse_fn: Arc::new(f),
         }
     }
@@ -151,9 +151,9 @@ where
     }
 
     #[must_use]
-    pub fn or<P: Into<Parser<I, O>>>(self, other: P) -> Parser<I, O> {
+    pub fn or<P: Into<Self>>(self, other: P) -> Self {
         let other = other.into();
-        Parser::new(move |input| match (self.parse(input), other.parse(input)) {
+        Self::new(move |input| match (self.parse(input), other.parse(input)) {
             (Some(a), Some(b)) => Some(a.combine(b)),
             (Some(a), None) => Some(a),
             (None, Some(b)) => Some(b),
@@ -265,9 +265,7 @@ where
     }
 
     /// Parses content enclosed by open and close delimiters.
-    pub fn between<L, R, Open, Close>(
-        open: Open, close: Close, content: Parser<I, O>,
-    ) -> Parser<I, O>
+    pub fn between<L, R, Open, Close>(open: Open, close: Close, content: Self) -> Self
     where
         Open: Into<Parser<I, L>>,
         Close: Into<Parser<I, R>>,
@@ -403,26 +401,26 @@ fn operator_parser() -> Parser<char, String> {
     )
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SqlQuery {
     Select(SelectStatement),
     Insert(InsertStatement),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SelectStatement {
     pub columns: Vec<String>,
     pub table: String,
     pub where_clause: Option<Condition>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InsertStatement {
     pub table: String,
     pub values: Vec<String>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Condition {
     pub field: String,
     pub operator: String,
@@ -553,7 +551,7 @@ pub struct DatabaseSchema {
     pub tables: Vec<TableSchema>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CheckedSelect {
     pub table: String,
     pub columns: Vec<String>,
@@ -832,6 +830,7 @@ pub fn execute_query(
 // 8. Main Demonstration & Contract Verification
 // ============================================================================
 
+#[allow(clippy::too_many_lines)]
 fn main() {
     println!("=== Rustica Flagship: Advanced Parser & Functional SQL Engine ===\n");
 

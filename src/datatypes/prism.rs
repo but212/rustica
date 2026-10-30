@@ -103,19 +103,12 @@ where
     where
         A: PartialEq,
     {
-        match (self.preview)(&source) {
-            Some(cur) if cur == &new_value => source,
-            Some(_) => (self.review)(new_value),
-            None => source,
-        }
+        self.modify(source, |_| new_value)
     }
 
     /// Reconstructs the focused variant when matched, bypassing equality checks.
     pub fn set_always(&self, source: S, new_value: A) -> S {
-        match (self.preview)(&source) {
-            Some(_) => (self.review)(new_value),
-            None => source,
-        }
+        self.modify_always(source, |_| new_value)
     }
 
     /// Modifies the focused value with `f`, returning `source` unchanged if unmatched or equal under `PartialEq`.

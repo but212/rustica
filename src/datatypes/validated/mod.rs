@@ -1,7 +1,7 @@
 #![doc = include_str!("../../../docs/datatypes/validated.md")]
 
 mod combinators;
-pub mod core;
+mod core;
 pub mod iter;
 
 pub use core::{NonEmptyErrors, Validated};
@@ -69,6 +69,16 @@ mod tests {
         assert_eq!(
             left.clone().combine(middle.clone()).combine(right.clone()),
             left.combine(middle.combine(right))
+        );
+    }
+
+    #[test]
+    fn combine_accumulates_errors_in_left_to_right_order() {
+        let left = Validated::<String, String>::invalid("e1".into());
+        let right = Validated::<String, String>::invalid("e2".into());
+        assert_eq!(
+            left.combine(right).error_slice(),
+            &["e1".to_string(), "e2".to_string()]
         );
     }
 

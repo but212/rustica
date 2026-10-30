@@ -68,7 +68,7 @@ fn test_monoid_utilities() {
 
 #[test]
 fn test_validated_semigroup_accumulation() {
-    use rustica::datatypes::validated::core::Validated;
+    use rustica::datatypes::validated::Validated;
     use rustica::traits::semigroup::Semigroup;
 
     #[derive(Debug, PartialEq, Eq, Clone, Copy)]

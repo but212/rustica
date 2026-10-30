@@ -400,12 +400,7 @@ impl<T: Clone, E: Clone> From<&Result<T, E>> for Validated<T, E> {
 /// preserves errors if one is invalid, or concatenates errors if both invalid.
 impl<T: Semigroup, E> Semigroup for Validated<T, E> {
     fn combine(self, other: Self) -> Self {
-        match (self, other) {
-            (Self::Valid(a1), Self::Valid(a2)) => Self::Valid(a1.combine(a2)),
-            (Self::Valid(_), o @ Self::Invalid(_)) => o,
-            (s @ Self::Invalid(_), Self::Valid(_)) => s,
-            (Self::Invalid(e1), Self::Invalid(e2)) => Self::Invalid(e1.combine(e2)),
-        }
+        self.zip_with(other, T::combine)
     }
 }
 

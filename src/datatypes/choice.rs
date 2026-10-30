@@ -9,7 +9,7 @@ use core::hash::Hash;
 use quickcheck::{Arbitrary, Gen};
 
 use crate::datatypes::validated::{NonEmptyErrors, Validated};
-use crate::prelude::traits::*;
+use crate::traits::semigroup::Semigroup;
 
 /// Errors produced by [`Choice`] operations.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

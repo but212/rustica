@@ -1,6 +1,6 @@
 # Rustica 0.22.0 Migration Guide
 
-Breaking changes in Rustica 0.22.0. Every removed item was deprecated in 0.21.0 and has a replacement. Only `Prism::set_with` and `Prism::modify_with` change behavior: their replacements do not preserve non-focus fields (see below).
+Breaking changes in Rustica 0.22.0. Every removed item was deprecated in 0.21.0 and has a replacement, except `datatypes::validated::core`, which was removed without deprecation (see below). Only `Prism::set_with` and `Prism::modify_with` change behavior: their replacements do not preserve non-focus fields (see below).
 
 ---
 
@@ -22,6 +22,7 @@ Breaking changes in Rustica 0.22.0. Every removed item was deprecated in 0.21.0 
 | `Prism::modify_with` | Removed | `modify_always` (or `modify`) |
 | `Choice::flatten` | Removed | `try_flatten().ok()`, or `try_flatten()` to keep `ChoiceError` |
 | `datatypes::error` module | Removed | `rustica::datatypes::{ChoiceError, FreeError}` or `rustica::prelude::*` |
+| `datatypes::validated::core` module | Removed (private) | `rustica::datatypes::validated::{Validated, NonEmptyErrors}` |
 
 ## Combinator Functions Removed
 
@@ -144,4 +145,16 @@ use rustica::datatypes::error::{ChoiceError, FreeError};
 use rustica::datatypes::{ChoiceError, FreeError};
 // or
 use rustica::prelude::*;
+```
+
+## `validated::core` Module Path Removed
+
+The `rustica::datatypes::validated::core` module was public in 0.21.0 and is now private. It was removed without a deprecation period: a deprecated public module still shadows the `core` crate under `use rustica::datatypes::validated::*`, so the glob import broke `core::…` paths in downstream code. Import from the parent module:
+
+```rust,ignore
+// Before (0.21.0)
+use rustica::datatypes::validated::core::{NonEmptyErrors, Validated};
+
+// After (0.22.0)
+use rustica::datatypes::validated::{NonEmptyErrors, Validated};
 ```
