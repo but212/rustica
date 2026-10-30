@@ -123,7 +123,7 @@ fn main() {
 
     // Stage 3: Updates via `set`
     println!("3. Updates via set:");
-    let updated_running = progress_prism.set(running.clone(), 90);
+    let updated_running = progress_prism.set(running, 90);
     println!("  Updated running progress: {updated_running:?}");
     assert_eq!(updated_running, TaskStatus::Running { progress: 90 });
 

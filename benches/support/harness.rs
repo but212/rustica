@@ -59,7 +59,7 @@ pub struct BenchGroup<'a> {
 impl<'a> BenchGroup<'a> {
     /// Creates a new benchmark group with the given name.
     #[must_use]
-    pub fn new(name: &'a str) -> Self {
+    pub const fn new(name: &'a str) -> Self {
         Self {
             name,
             warmup_iters: DEFAULT_WARMUP_ITERS,
@@ -82,13 +82,13 @@ impl<'a> BenchGroup<'a> {
     }
 
     /// Sets the number of warmup samples.
-    pub fn warmup_iters(&mut self, warmup_iters: usize) -> &mut Self {
+    pub const fn warmup_iters(&mut self, warmup_iters: usize) -> &mut Self {
         self.warmup_iters = warmup_iters;
         self
     }
 
     /// Resets iteration and warmup parameters back to defaults.
-    pub fn reset_sampling(&mut self) -> &mut Self {
+    pub const fn reset_sampling(&mut self) -> &mut Self {
         self.warmup_iters = DEFAULT_WARMUP_ITERS;
         self.measure_iters = DEFAULT_MEASURE_ITERS;
         self.batch_iters = DEFAULT_BATCH_ITERS;
@@ -96,13 +96,13 @@ impl<'a> BenchGroup<'a> {
     }
 
     /// Sets the throughput annotation for subsequent benchmarks in this group.
-    pub fn throughput(&mut self, throughput: Throughput) -> &mut Self {
+    pub const fn throughput(&mut self, throughput: Throughput) -> &mut Self {
         self.throughput = Some(throughput);
         self
     }
 
     /// Clears any throughput annotation for subsequent benchmarks in this group.
-    pub fn clear_throughput(&mut self) -> &mut Self {
+    pub const fn clear_throughput(&mut self) -> &mut Self {
         self.throughput = None;
         self
     }
