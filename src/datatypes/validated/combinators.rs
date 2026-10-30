@@ -16,9 +16,9 @@ impl<T, E> Validated<T, E> {
     /// let invalid: Validated<i32, &str> = Validated::invalid("error");
     /// assert_eq!(invalid.map(|v| v * 2), Validated::invalid("error"));
     /// ```
-    pub fn map<U, F>(self, mut f: F) -> Validated<U, E>
+    pub fn map<U, F>(self, f: F) -> Validated<U, E>
     where
-        F: FnMut(T) -> U,
+        F: FnOnce(T) -> U,
     {
         match self {
             Self::Valid(x) => Validated::Valid(f(x)),
@@ -61,9 +61,9 @@ impl<T, E> Validated<T, E> {
     /// let result = invalid.bimap(|v| v * 2, |e| format!("Err: {e}"));
     /// assert_eq!(result, Validated::invalid("Err: failed".to_string()));
     /// ```
-    pub fn bimap<U, F, FVal, FErr>(self, mut f: FVal, g: FErr) -> Validated<U, F>
+    pub fn bimap<U, F, FVal, FErr>(self, f: FVal, g: FErr) -> Validated<U, F>
     where
-        FVal: FnMut(T) -> U,
+        FVal: FnOnce(T) -> U,
         FErr: FnMut(E) -> F,
     {
         match self {
@@ -371,6 +371,19 @@ mod tests {
             bimapped_err,
             Validated::invalid_many(["E: err1".to_string(), "E: err2".to_string()])
         );
+    }
+
+    #[test]
+    fn map_and_bimap_accept_fnonce_closures() {
+        let name = String::from("alice");
+        let valid = Validated::<i32, &str>::valid(1);
+        let mapped = valid.map(move |n| (n, name));
+        assert_eq!(mapped, Validated::valid((1, "alice".to_string())));
+
+        let name = String::from("bob");
+        let valid = Validated::<i32, &str>::valid(2);
+        let bimapped = valid.bimap(move |n| (n, name), |e: &str| e.to_string());
+        assert_eq!(bimapped, Validated::valid((2, "bob".to_string())));
     }
 
     #[test]
