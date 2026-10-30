@@ -12,7 +12,7 @@ definition from execution.
 ## Architectural Role: `Free` vs `Program`
 
 - **`Free<F, A>` (DSL AST Engine)**: Cloneable, `Arc`-backed computation trees for multi-pass interpretation and repeated execution. Inspect structure via [`is_pure`](Free::is_pure), [`is_suspend`](Free::is_suspend), [`is_bind`](Free::is_bind), [`is_then`](Free::is_then); inspect payloads via [`as_pure`](Free::as_pure), [`as_suspend`](Free::as_suspend), [`as_then`](Free::as_then). Continuations in `Bind` remain opaque. Stack safety applies to `Bind`, `Then`, and `Zip` spines. `is_bind` also returns `true` for `Zip` nodes produced by `zip_with` and `apply` on non-pure operands.
-- **[`Program<H, A>`](crate::datatypes::operational::Program) (Operational Pipeline)**: Statically couples commands to handler `H` at compile time, eliminating runtime downcasts via trampoline evaluation.
+- **[`Program<H, A>`](crate::datatypes::operational::Program) (Operational Pipeline)**: Statically couples commands to handler `H`, enforcing command output types at compile time so trampoline downcasts cannot fail.
 
 ## Example
 

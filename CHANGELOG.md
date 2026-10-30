@@ -5,6 +5,8 @@
 ### Changed
 
 - **`Free` Direct Root Trampoline Dispatch**: `Free::run` and `Free::try_run` evaluate `Pure`/`Suspend` roots directly; other roots go through `into_any()`. Direct evaluation of `Pure` and `Suspend` roots avoids trampoline stack allocations, closure adapters, and `AnyValue` downcasting.
+- **`Validated::map` & `bimap` Closure Bounds**: `map` and the value closure of `bimap` take `FnOnce` instead of `FnMut`, since each calls its closure at most once. Closures that move captured values, such as `move |n| (n, name)`, are now accepted. No breaking change.
+- **Operational `Suspend` Node**: The node stores only the erased command runner; the per-command output continuation and its downcast were removed. Internal only; behavior is unchanged.
 - **Internal Refactor**: `Operational` `Then` nodes store a non-empty prefix type (`Steps`) so an empty prefix is unrepresentable; `Choice::try_each_validated`, `monoid::combine_all`, and the `Free` debug spine counting were simplified. The `operational` module is split into the `operational/` directory with no public API change. Behavior is unchanged.
 
 ### Removed
@@ -18,6 +20,7 @@
 - **`Choice::flatten` (Breaking)**: Removed. Use `try_flatten().ok()` or `try_flatten()` to keep the `ChoiceError`. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
 - **`datatypes::error` Module (Breaking)**: Removed the backward-compatibility alias. Use `rustica::datatypes::{ChoiceError, FreeError}` or `rustica::prelude::*`. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
 - **`validated::core` Module Path (Breaking)**: Made private without deprecation. A public module named `core` shadows the `core` crate under `use rustica::datatypes::validated::*`, so `core::mem::…` stops compiling; a deprecated module still shadows it. Use `rustica::datatypes::validated::{Validated, NonEmptyErrors}`. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
+- **`Program` Tuple Struct Replaced by Alias (Breaking)**: `Program<H, A>` is now `pub type Program<H, A> = TryProgram<H, A, Infallible>`. The `Program(..)` constructor, the public `.0` field, and the wrapper's forwarding methods and `Debug` impl were removed; `Program` exposes the same API through `TryProgram`. See [`MIGRATION_v0.22.0.md`](docs/migration/MIGRATION_v0.22.0.md).
 
 ### Fixed
 
