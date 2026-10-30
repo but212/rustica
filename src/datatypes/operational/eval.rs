@@ -38,7 +38,7 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
                     continue;
                 },
                 Node::Pure(val) => val,
-                Node::Suspend(runner, cont) => cont(runner(handler)?),
+                Node::Suspend(runner) => runner(handler)?,
             };
 
             match stack.pop() {

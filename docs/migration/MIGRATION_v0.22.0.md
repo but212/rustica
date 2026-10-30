@@ -1,6 +1,6 @@
 # Rustica 0.22.0 Migration Guide
 
-Breaking changes in Rustica 0.22.0. Every removed item was deprecated in 0.21.0 and has a replacement, except `datatypes::validated::core`, which was removed without deprecation (see below). Only `Prism::set_with` and `Prism::modify_with` change behavior: their replacements do not preserve non-focus fields (see below).
+Breaking changes in Rustica 0.22.0. Every removed item was deprecated in 0.21.0 and has a replacement, except `datatypes::validated::core` and the `Program` tuple struct, which were changed without deprecation (see below). Only `Prism::set_with` and `Prism::modify_with` change behavior: their replacements do not preserve non-focus fields (see below).
 
 ---
 
@@ -23,6 +23,7 @@ Breaking changes in Rustica 0.22.0. Every removed item was deprecated in 0.21.0 
 | `Choice::flatten` | Removed | `try_flatten().ok()`, or `try_flatten()` to keep `ChoiceError` |
 | `datatypes::error` module | Removed | `rustica::datatypes::{ChoiceError, FreeError}` or `rustica::prelude::*` |
 | `datatypes::validated::core` module | Removed (private) | `rustica::datatypes::validated::{Validated, NonEmptyErrors}` |
+| `Program(p)` / `program.0` | Removed (tuple struct) | `p` directly; `Program<H, A>` is `TryProgram<H, A, Infallible>` |
 
 ## Combinator Functions Removed
 
@@ -158,3 +159,19 @@ use rustica::datatypes::validated::core::{NonEmptyErrors, Validated};
 // After (0.22.0)
 use rustica::datatypes::validated::{NonEmptyErrors, Validated};
 ```
+
+## `Program` Newtype Replaced by Alias
+
+`Program<H, A>` was a tuple struct around `TryProgram<H, A, Infallible>` in 0.21.0. It became a type alias in 0.22.0 without a deprecation period, so the `Program(..)` constructor and the `.0` field no longer exist. The constructors, combinators, `run`, and `is_*` predicates are unchanged; they come from `TryProgram`, and `Debug` output is the same:
+
+```rust,ignore
+// Before (0.21.0)
+let prog: Program<H, ()> = Program(try_prog);
+let inner: TryProgram<H, (), Infallible> = prog.0;
+
+// After (0.22.0)
+let prog: Program<H, ()> = try_prog;
+let inner: TryProgram<H, (), Infallible> = prog;
+```
+
+Because `Program` is an alias, `try_run` (which returns `Result<A, Infallible>`) is also available on it.
