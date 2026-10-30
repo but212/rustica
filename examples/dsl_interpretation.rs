@@ -75,6 +75,11 @@ impl Handler<SendReceipt> for ProductionOrderHandler {
     }
 }
 
+/// Interprets the order pipeline as a `Program` against a live handler and checks the output.
+///
+/// # Panics
+///
+/// Panics if an `assert_eq!` self-check on the interpreted output fails.
 fn run_operational_monad_example() {
     println!("--- 1. Operational Monad (Program) ---");
 
@@ -141,6 +146,11 @@ impl OrderOp {
     }
 }
 
+/// Interprets the same order `Free` program twice, as a dry run and as a live execution.
+///
+/// # Panics
+///
+/// Panics if an `assert_eq!` self-check on the dry-run total or the live output fails.
 fn run_free_monad_example() {
     println!("--- 2. Free Monad (Free<F, A>) ---");
 

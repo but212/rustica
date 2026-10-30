@@ -119,6 +119,16 @@ where
     /// Disambiguation Policy:
     /// 1. Prioritizes branches that fully consumed input (`remaining.is_empty()`).
     /// 2. If no complete match exists, selects the longest-match branch for error reporting.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ParseError` if no branch matches the grammar, or if the longest-match branch
+    /// leaves unconsumed tokens.
+    ///
+    /// # Panics
+    ///
+    /// Does not panic: `Choice` always holds a primary branch, so the `min_by_key` `unwrap`
+    /// is infallible.
     pub fn parse_complete(&self, input: &[I]) -> Result<O, ParseError>
     where
         I: Display,
@@ -195,6 +205,10 @@ where
     /// Commits to the first match per iteration to avoid exponential branch explosion (`O(k^n)`).
     /// Full alternative exploration is preserved in `or()`, `and_then()`, and `parse_complete()`.
     /// Guaranteed to terminate if an iteration consumes zero tokens.
+    ///
+    /// # Panics
+    ///
+    /// Does not panic: each `Choice` holds a primary branch, so the `next` `unwrap` is infallible.
     #[must_use]
     pub fn many(self) -> Parser<I, Vec<O>> {
         Parser::new(move |input| {
@@ -227,6 +241,11 @@ where
         })
     }
 
+    /// Makes this parser optional, yielding `None` without consuming input when it fails.
+    ///
+    /// # Panics
+    ///
+    /// Does not panic: each `Choice` holds a primary branch, so the `next` `unwrap` is infallible.
     #[must_use]
     pub fn optional(self) -> Parser<I, Option<O>> {
         Parser::new(move |input| match self.parse(input) {
@@ -357,6 +376,10 @@ fn word() -> Parser<char, String> {
 }
 
 /// Parses an identifier, rejecting reserved SQL keywords.
+///
+/// # Panics
+///
+/// Does not panic: each `Choice` holds a primary branch, so the `next` `unwrap` is infallible.
 fn identifier() -> Parser<char, String> {
     token(Parser::new(|input| {
         let choice = word().parse(input)?;
@@ -816,6 +839,11 @@ pub fn build_query_program(stmt: CheckedSelect) -> TryProgram<InMemoryDb, Vec<Ro
 // 7. ContextError: Execution Failure Tracing
 // ============================================================================
 
+/// Runs a query program against the database, adding pipeline context to any failure.
+///
+/// # Errors
+///
+/// Returns a `ContextError` wrapping the program's error if `program.try_run` fails.
 pub fn execute_query(
     program: TryProgram<InMemoryDb, Vec<Row>, &'static str>, db: &mut InMemoryDb,
 ) -> Result<Vec<Row>, ContextError<&'static str>> {

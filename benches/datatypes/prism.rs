@@ -1,3 +1,7 @@
+// Routines `unwrap` values that their setup closure always provides, so they cannot panic.
+// Wildcard arms match closed, bench-local enums, keeping the measured match shape unchanged.
+#![allow(clippy::missing_panics_doc, clippy::match_wildcard_for_single_variants)]
+
 use crate::harness::{BenchGroup, Harness};
 use rustica::datatypes::prism::Prism;
 use std::hint::black_box;

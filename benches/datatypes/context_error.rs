@@ -67,6 +67,8 @@ fn bench_lazy_context(group: &mut BenchGroup) {
     });
 }
 
+// `sample_contexts` holds 50 `&str` values (800 bytes), far below any stack concern.
+#[allow(clippy::large_stack_arrays)]
 fn bench_bottlenecks_timing(group: &mut BenchGroup) {
     // 1. with_contexts batch allocation & reverse overhead
     let sample_contexts = ["layer context"; 50];

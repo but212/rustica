@@ -1,3 +1,6 @@
+// Tests panic on assertion failure by design; integration tests expose no public API.
+#![allow(clippy::missing_panics_doc)]
+
 use rustica::datatypes::validated::{NonEmptyErrors, Validated};
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
@@ -134,6 +137,8 @@ fn test_zip3_error_realloc_count() {
 }
 
 #[test]
+// `i` ranges over 1..1000, so the cast to `u64` never loses a sign.
+#[allow(clippy::cast_sign_loss)]
 fn test_collect_early_error_zero_allocs_for_values() {
     // 1000 items with first item invalid: values must NEVER allocate
     let first = Validated::<[u64; 16], &'static str>::invalid("early_err");

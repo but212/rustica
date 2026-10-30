@@ -81,6 +81,11 @@ impl<F, A> Free<F, A> {
     /// If `self` is pure, maps `other` directly without creating a `Zip` node. Otherwise,
     /// constructs a `Zip` AST node that owns both sub-computations rather than capturing
     /// them in a continuation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if an operand fails to downcast to its expected type during evaluation. Operands
+    /// are type-erased by this method, so this indicates a broken internal invariant.
     pub fn zip_with<T2, B, Func>(&self, other: Free<F, T2>, f: Func) -> Free<F, B>
     where
         F: Send + Sync + Clone + 'static,
