@@ -1,7 +1,7 @@
 #![doc = include_str!("../../../docs/datatypes/validated.md")]
 
 mod combinators;
-pub mod core;
+mod core;
 pub mod iter;
 
 pub use core::{NonEmptyErrors, Validated};
