@@ -73,6 +73,16 @@ mod tests {
     }
 
     #[test]
+    fn combine_accumulates_errors_in_left_to_right_order() {
+        let left = Validated::<String, String>::invalid("e1".into());
+        let right = Validated::<String, String>::invalid("e2".into());
+        assert_eq!(
+            left.combine(right).error_slice(),
+            &["e1".to_string(), "e2".to_string()]
+        );
+    }
+
+    #[test]
     fn test_validated_core_conversions_and_mapping() {
         let valid: Validated<i32, &str> = Validated::valid(42);
         assert!(valid.is_valid());
