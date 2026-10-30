@@ -36,13 +36,12 @@ impl<F, A> Free<F, A> {
         if let Node::Pure(a) = self.node() {
             f(a.clone())
         } else {
-            let f_arc = Arc::new(f);
             let sub = Arc::new(self.to_any());
             Free::from_node(Node::Bind(
                 sub,
                 Arc::new(move |any_val: AnyValue| {
                     let a = downcast_any_value::<A>(&any_val).expect("Free bind downcast failed");
-                    f_arc(a)
+                    f(a)
                 }),
             ))
         }
