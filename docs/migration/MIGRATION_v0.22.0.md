@@ -2,6 +2,8 @@
 
 Breaking changes in Rustica 0.22.0. Every removed item was deprecated in 0.21.0 and has a replacement, except `datatypes::validated::core` and the `Program` tuple struct, which were changed without deprecation (see below). Only `Prism::set_with` and `Prism::modify_with` change behavior: their replacements do not preserve non-focus fields (see below).
 
+**API Stability Policy (0.22.0+):** Rustica 0.22.0 completes the surface reduction and architectural consolidation started in 0.14.0. Starting with 0.22.0, no further sweeping API removals or big-bang breaking releases are planned.
+
 ---
 
 ## Quick Reference

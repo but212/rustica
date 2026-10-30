@@ -1,6 +1,8 @@
 # CHANGELOG
 
-## [Unreleased]
+## [0.22.0]
+
+> **API Stability (0.22.0+):** This release completes the multi-release API surface consolidation (0.14.0–0.22.0). Starting with 0.22.0, no further sweeping API removals or big-bang breaking patches are planned.
 
 ### Changed
 

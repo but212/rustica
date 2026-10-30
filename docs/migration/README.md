@@ -1,6 +1,6 @@
 # Migration Guides
 
-Breaking changes and migration steps across Rustica versions.
+Breaking changes and migration steps across Rustica versions. Starting with 0.22.0, the API surface consolidation is complete and no further sweeping API removals or big-bang breaking releases are planned.
 
 - [Migration V0.13.0](MIGRATION_v0.13.0.md)
 - [Migration V0.14.0](MIGRATION_v0.14.0.md)

@@ -24,9 +24,9 @@ Add Rustica to `Cargo.toml`:
 
 ```toml
 [dependencies]
-rustica = "0.21.0"
+rustica = "0.22.0"
 # Optional feature bundle:
-# rustica = { version = "0.21.0", features = ["full"] } # serde, quickcheck
+# rustica = { version = "0.22.0", features = ["full"] } # serde, quickcheck
 ```
 
 Import common traits and types:
@@ -60,7 +60,9 @@ use rustica::prelude::*;
 
 ## Migration Guides
 
-- [0.22.0 Migration Guide](./docs/migration/MIGRATION_v0.22.0.md): removal of APIs deprecated in 0.21.0 (`lift2`/`lift3`, `Validated::collect`/`sequence`, `Prism::set_with`/`modify_with`, `Choice::flatten`, `context_fn`, `operational::suspend`/`try_suspend`, `datatypes::error`)
+Starting with **0.22.0**, the core API surface consolidation (0.14.0–0.22.0) is complete; no further sweeping API removals or large-scale breaking patches are planned.
+
+- [0.22.0 Migration Guide](./docs/migration/MIGRATION_v0.22.0.md): removal of APIs deprecated in 0.22.0 (`lift2`/`lift3`, `Validated::collect`/`sequence`, `Prism::set_with`/`modify_with`, `Choice::flatten`, `context_fn`, `operational::suspend`/`try_suspend`, `datatypes::error`)
 - [0.21.0 Migration Guide](./docs/migration/MIGRATION_v0.21.0.md): removal of deprecated compatibility APIs
 - [0.20.0 Migration Guide](./docs/migration/MIGRATION_v0.20.0.md): `no_std` migration, removal of deprecated APIs and `HashMap`/`HashSet` Semigroup impls
 - [0.19.0 Migration Guide](./docs/migration/MIGRATION_v0.19.0.md): Free monad restructuring (`enum` → `struct`, explicit `Then` AST node, internal type-erasure), operational monad single-threaded decoupling (`Send + Sync` removal for `Rc`/`RefCell`), removal of `PersistentVector` (`pvec`), categorical simulation traits (`HKT`, `Functor`, `Pure`, `Applicative`, `Monad`, `Foldable`), and `Prism::set_if_different`
