@@ -1,3 +1,6 @@
+// Routines `unwrap` values that their setup closure always provides, so they cannot panic.
+#![allow(clippy::missing_panics_doc)]
+
 use crate::harness::{BenchGroup, Harness};
 use rustica::datatypes::lens::Lens;
 use std::hint::black_box;

@@ -1,3 +1,6 @@
+// Tests panic on assertion failure by design; integration tests expose no public API.
+#![allow(clippy::missing_panics_doc)]
+
 use rustica::context;
 use rustica::error::{ContextError, accumulate_context, with_context, with_context_result};
 use std::sync::Arc;

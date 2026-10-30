@@ -1,9 +1,19 @@
 use rustica::error::{ContextError, accumulate_context, with_context_result};
 
+/// Parses the configuration file contents as an `i32`.
+///
+/// # Errors
+///
+/// Returns an error if `content` is not a valid `i32`.
 fn parse_config(content: &str) -> Result<i32, &'static str> {
     content.parse::<i32>().map_err(|_| "Invalid number format")
 }
 
+/// Opens a database connection with the given timeout.
+///
+/// # Errors
+///
+/// Returns an error if `timeout_ms` is below 100.
 fn connect_db(timeout_ms: i32) -> Result<String, &'static str> {
     if timeout_ms < 100 {
         Err("Connection timeout too short")
@@ -12,6 +22,11 @@ fn connect_db(timeout_ms: i32) -> Result<String, &'static str> {
     }
 }
 
+/// Processes `value` rows over the given connection.
+///
+/// # Errors
+///
+/// Returns an error if `value` is odd.
 fn process_data(connection: &str, value: i32) -> Result<String, &'static str> {
     if value % 2 == 0 {
         Ok(format!("Processed {value} rows via {connection}"))
@@ -20,6 +35,12 @@ fn process_data(connection: &str, value: i32) -> Result<String, &'static str> {
     }
 }
 
+/// Runs the configuration, connection, and processing stages in order.
+///
+/// # Errors
+///
+/// Returns the first failing stage's error, wrapped in a `ContextError` that carries that
+/// stage's context.
 fn run_pipeline(config_str: &str) -> Result<String, ContextError<&'static str>> {
     let cfg = with_context_result(
         parse_config(config_str),

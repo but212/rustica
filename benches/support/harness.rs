@@ -3,6 +3,14 @@
 //! Provides lightweight benchmarking functionality measuring execution time
 //! using standard library primitives (`std::time::Instant` and `std::hint::black_box`).
 
+// Casts operate on iteration counts, sample sizes, and byte totals far below the lossy thresholds.
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss
+)]
+
 use std::fmt::Display;
 use std::hint::black_box;
 use std::time::{Duration, Instant};

@@ -1,3 +1,6 @@
+// Bench routines `expect` values that their setup closure always provides, so they cannot panic.
+#![allow(clippy::missing_panics_doc)]
+
 use crate::harness::{BenchGroup, Harness};
 use rustica::datatypes::operational::{Command, Handler, Program};
 use std::hint::black_box;
@@ -57,6 +60,11 @@ fn configure_depth_sampling(group: &mut BenchGroup, depth: usize) {
 }
 
 /// Measures cumulative heap allocation churn for `Program::run` across varying tree depths.
+///
+/// # Panics
+///
+/// Panics if the setup closure yields no program. The setup closure always returns `Some`, so
+/// this does not occur.
 fn bench_memory_churn(group: &mut BenchGroup) {
     group.reset_sampling();
     group.measure_iters(50);

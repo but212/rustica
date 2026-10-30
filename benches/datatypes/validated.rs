@@ -1,3 +1,10 @@
+// Casts convert small loop indices and element counts, which cannot reach the lossy thresholds.
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss
+)]
+
 use crate::harness::{BenchGroup, Harness};
 use rustica::datatypes::validated::Validated;
 use rustica::traits::semigroup::Semigroup;
