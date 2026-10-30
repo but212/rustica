@@ -1,12 +1,6 @@
 use core::fmt;
 
-use super::{Node, Program, TryProgram};
-
-impl<H, A: fmt::Debug> fmt::Debug for Program<H, A> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, f)
-    }
-}
+use super::{Node, TryProgram};
 
 // Non-recursive Debug implementation summarizing sub-computations without traversing children.
 impl<H, A: fmt::Debug, E> fmt::Debug for TryProgram<H, A, E> {
@@ -28,8 +22,8 @@ mod tests {
     use alloc::format;
 
     use super::*;
-    use crate::datatypes::operational::Command;
     use crate::datatypes::operational::fixtures::*;
+    use crate::datatypes::operational::{Command, Program};
 
     #[test]
     fn test_predicates_and_debug() {

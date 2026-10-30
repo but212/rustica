@@ -1,72 +1,19 @@
 use core::convert::Infallible;
 
-use super::{Command, Handler, TryProgram};
+use super::TryProgram;
 
 /// Infallible Operational Monad computation.
 ///
-/// Backed by [`TryProgram<H, A, Infallible>`].
-#[repr(transparent)]
-pub struct Program<H, A>(pub TryProgram<H, A, Infallible>);
+/// Alias of [`TryProgram<H, A, Infallible>`]; it shares every constructor and inspector of [`TryProgram`].
+pub type Program<H, A> = TryProgram<H, A, Infallible>;
 
-impl<H: 'static> Program<H, ()> {
-    /// Suspends a command into an infallible [`Program`].
-    pub fn suspend<C>(cmd: C) -> Program<H, C::Output>
-    where
-        C: Command,
-        H: Handler<C>,
-    {
-        Program(TryProgram::suspend(cmd))
-    }
-}
-
-impl<H: 'static, A: 'static> Program<H, A> {
-    /// Wraps a pure value in a [`Program`].
-    pub const fn pure(val: A) -> Self {
-        Self(TryProgram::pure(val))
-    }
-
-    /// Transforms the inner value with `f`.
-    pub fn map<B: 'static, F>(self, f: F) -> Program<H, B>
-    where
-        F: FnOnce(A) -> B + 'static,
-    {
-        Program(self.0.map(f))
-    }
-
-    /// Sequences another computation from the result of `self`.
-    pub fn and_then<B: 'static, F>(self, f: F) -> Program<H, B>
-    where
-        F: FnOnce(A) -> Program<H, B> + 'static,
-    {
-        Program(self.0.and_then(move |a| f(a).0))
-    }
-
-    /// Sequences `next` after `self`, discarding `self`'s output.
-    pub fn then<B: 'static>(self, next: Program<H, B>) -> Program<H, B> {
-        Program(self.0.then(next.0))
-    }
-
+impl<H: 'static, A: 'static> TryProgram<H, A, Infallible> {
     /// Evaluates the program using `handler` with stack safety.
     pub fn run(self, handler: &mut H) -> A {
-        match self.0.try_run(handler) {
+        match self.try_run(handler) {
             Ok(val) => val,
             Err(inf) => match inf {},
         }
-    }
-
-    /// Returns `true` if the computation is a pure value.
-    pub const fn is_pure(&self) -> bool {
-        self.0.is_pure()
-    }
-
-    /// Returns `true` if the computation is a suspended command.
-    pub const fn is_suspend(&self) -> bool {
-        self.0.is_suspend()
-    }
-
-    /// Returns `true` if the computation is a sequenced continuation node.
-    pub const fn is_bind(&self) -> bool {
-        self.0.is_bind()
     }
 }
 
@@ -79,6 +26,7 @@ mod tests {
 
     use super::*;
     use crate::datatypes::operational::fixtures::*;
+    use crate::datatypes::operational::{Command, Handler};
 
     #[test]
     fn test_statically_typed_pipeline() {
@@ -141,5 +89,18 @@ mod tests {
         let result = prog.run(&mut handler);
         assert_eq!(*result.borrow(), vec![1, 2, 3]);
         assert_eq!(*shared.borrow(), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn program_is_the_infallible_try_program() {
+        fn run_infallible<H: 'static, A: 'static>(
+            program: TryProgram<H, A, Infallible>, handler: &mut H,
+        ) -> A {
+            program.run(handler)
+        }
+
+        let program: Program<CalcInterpreter, i32> = Add(7).suspend().then(Fetch.suspend());
+        let mut interpreter = CalcInterpreter { current: 0 };
+        assert_eq!(run_infallible(program, &mut interpreter), 7);
     }
 }
