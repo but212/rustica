@@ -69,7 +69,7 @@ type TryContFn<H, E> = Box<dyn FnOnce(AnyBox) -> TryProgram<H, AnyBox, E>>;
 
 enum Node<H, A, E> {
     Pure(A),
-    Suspend(TryStepFn<H, E>, Box<dyn FnOnce(AnyBox) -> A>),
+    Suspend(TryStepFn<H, E>),
     Bind(
         Box<TryProgram<H, AnyBox, E>>,
         Box<dyn FnOnce(AnyBox) -> TryProgram<H, A, E>>,
@@ -120,26 +120,15 @@ impl<H, A, E> TryProgram<H, A, E> {
 
 impl<H: 'static, E: 'static> TryProgram<H, (), E> {
     /// Suspends a command into a `TryProgram`.
-    ///
-    /// # Panics
-    ///
-    /// Does not panic in normal usage; command output downcasting is statically guaranteed.
     pub fn suspend<C>(cmd: C) -> TryProgram<H, C::Output, E>
     where
         C: Command,
         H: TryHandler<C, E>,
     {
-        TryProgram::from_node(Node::Suspend(
-            Box::new(move |handler: &mut H| {
-                let out = handler.try_handle(cmd)?;
-                Ok(Box::new(out) as AnyBox)
-            }),
-            Box::new(|any_val: AnyBox| {
-                *any_val
-                    .downcast::<C::Output>()
-                    .expect("statically guaranteed command output type")
-            }),
-        ))
+        TryProgram::from_node(Node::Suspend(Box::new(move |handler: &mut H| {
+            let out = handler.try_handle(cmd)?;
+            Ok(Box::new(out) as AnyBox)
+        })))
     }
 }
 
@@ -224,10 +213,7 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
 
         let mut erased = match node {
             Node::Pure(a) => TryProgram::pure(Box::new(a) as AnyBox),
-            Node::Suspend(runner, cont) => TryProgram::from_node(Node::Suspend(
-                runner,
-                Box::new(move |res| Box::new(cont(res)) as AnyBox),
-            )),
+            Node::Suspend(runner) => TryProgram::from_node(Node::Suspend(runner)),
             Node::Bind(sub, cont) => {
                 TryProgram::from_node(Node::Bind(sub, Box::new(move |res| cont(res).into_any())))
             },
@@ -253,7 +239,7 @@ impl<H: 'static, A: 'static, E: 'static> TryProgram<H, A, E> {
 
     /// Returns `true` if the computation is a suspended command.
     pub const fn is_suspend(&self) -> bool {
-        matches!(self.node, Some(Node::Suspend(_, _)))
+        matches!(self.node, Some(Node::Suspend(_)))
     }
 
     /// Returns `true` if the computation is a sequenced continuation node.

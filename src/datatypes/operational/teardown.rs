@@ -31,7 +31,7 @@ fn drop_any_programs<H, E>(programs: impl IntoIterator<Item = TryProgram<H, AnyB
                 }
             },
             Node::Pure(value) => drop(value),
-            Node::Suspend(runner, cont) => drop((runner, cont)),
+            Node::Suspend(runner) => drop(runner),
         }
     }
 }
