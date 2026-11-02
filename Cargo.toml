@@ -30,6 +30,7 @@ default = []
 serde = ["dep:serde", "serde/rc"]
 quickcheck = ["dep:quickcheck"]
 full = ["serde", "quickcheck"]
+# Canary flag for in-progress (WIP) features; currently an alias of `full`.
 develop = ["full"]
 
 [[bench]]
