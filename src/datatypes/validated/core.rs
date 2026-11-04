@@ -559,4 +559,28 @@ mod tests {
         // Validation errors are peers rather than a causal chain, so source is None.
         assert!(as_error.source().is_none());
     }
+
+    #[test]
+    fn non_empty_errors_slice_comparisons_detect_inequality() {
+        let errors = NonEmptyErrors::try_from_iter([1, 2]).expect("non-empty");
+        let other = [1, 3];
+        let other_ref: &[i32] = &other;
+        let same_ref: &[i32] = &[1, 2];
+
+        assert!(errors != other[..]);
+        assert!(errors != other_ref);
+        assert!(errors != other.to_vec());
+        assert!(errors != other);
+
+        assert!(errors == [1, 2][..]);
+        assert!(errors == same_ref);
+        assert!(errors == alloc::vec![1, 2]);
+        assert!(errors == [1, 2]);
+    }
+
+    #[test]
+    fn validated_is_invalid_false_for_valid() {
+        assert!(!Validated::<i32, &str>::valid(1).is_invalid());
+        assert!(Validated::<i32, &str>::invalid("e").is_invalid());
+    }
 }

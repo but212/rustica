@@ -702,4 +702,10 @@ mod unit_tests {
         assert_eq!(choice[3], 4);
         assert_eq!(choice[4], 5);
     }
+
+    #[test]
+    fn into_vec_preserves_primary_then_alternatives() {
+        let choice = Choice::new(1, vec![2, 3]);
+        assert_eq!(Vec::from(choice), vec![1, 2, 3]);
+    }
 }

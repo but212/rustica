@@ -1,0 +1,8 @@
+# Equivalent mutants: not observable through the public API.
+exclude_re = [
+  # Capacity-only arithmetic.
+  'replace \* with [/+] in ContextError<E>::error_chain',
+  'replace (> with >=|- with [+/]) in NonEmptyErrors<E>::combine_multiple',
+  # Self::new() == Default::default() for Vec and String.
+  'replace <impl Monoid for (Vec<T>|String)>::empty -> Self with Default::default\(\)',
+]

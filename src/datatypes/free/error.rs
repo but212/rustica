@@ -69,4 +69,29 @@ mod tests {
             "Free interpretation type mismatch: expected return type i32"
         );
     }
+
+    #[derive(Debug)]
+    struct Boom;
+
+    impl core::fmt::Display for Boom {
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            write!(f, "boom")
+        }
+    }
+
+    impl core::error::Error for Boom {}
+
+    #[test]
+    fn test_free_error_source() {
+        use core::error::Error;
+
+        let err: FreeError<Boom> = FreeError::Interpreter(Boom);
+        assert_eq!(
+            err.source().map(ToString::to_string),
+            Some("boom".to_string())
+        );
+
+        let mismatch: FreeError<Boom> = FreeError::TypeMismatch { expected: "i32" };
+        assert!(mismatch.source().is_none());
+    }
 }
