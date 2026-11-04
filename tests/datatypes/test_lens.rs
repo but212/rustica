@@ -29,14 +29,12 @@ fn age_lens() -> Lens<
 }
 
 // Law 1: GetSet Law (l.set(s.clone(), l.to_value(&s)) == s)
-#[test]
-fn test_lens_get_set_law() {
-    let lens = name_lens();
-    let person = TestPerson {
-        name: "Alice".into(),
-        age: 30,
-    };
-    assert_eq!(lens.set(person.clone(), lens.to_value(&person)), person);
+#[quickcheck]
+fn test_lens_get_set_law(name: String, age: u32) -> bool {
+    let person = TestPerson { name, age };
+    let (name_l, age_l) = (name_lens(), age_lens());
+    name_l.set(person.clone(), name_l.to_value(&person)) == person
+        && age_l.set(person.clone(), age_l.to_value(&person)) == person
 }
 
 // Law 2: SetGet Law (*l.view(&l.set(s, v)) == v)

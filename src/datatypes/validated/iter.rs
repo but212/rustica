@@ -161,6 +161,10 @@ mod tests {
 
     #[test]
     fn test_invalid_iterators_and_slices() {
+        let valid: Validated<i32, String> = Validated::valid(42);
+        assert!(valid.error_slice().is_empty());
+        assert!(valid.error_payload().is_none());
+
         let mut invalid: Validated<i32, String> =
             Validated::invalid_many(["e1".to_string(), "e2".to_string()]);
 
@@ -174,22 +178,16 @@ mod tests {
         assert_eq!(invalid.error_slice(), &["e1!", "e2!"]);
     }
 
-    #[test]
-    fn test_const_fn_capability() {
-        const fn inspect_error_slice<T, E>(v: &Validated<T, E>) -> &[E] {
-            v.error_slice()
-        }
-
-        const fn inspect_error_payload<T, E>(v: &Validated<T, E>) -> Option<&NonEmptyErrors<E>> {
-            v.error_payload()
-        }
-
-        let valid: Validated<i32, &'static str> = Validated::valid(42);
-        assert_eq!(inspect_error_slice(&valid), &[] as &[&'static str]);
-        assert!(inspect_error_payload(&valid).is_none());
-
-        let invalid: Validated<i32, &'static str> = Validated::invalid("fail");
-        assert_eq!(inspect_error_slice(&invalid), &["fail"]);
-        assert!(inspect_error_payload(&invalid).is_some());
+    // Compile-time witnesses: `const fn` accessors must stay usable in const contexts.
+    const fn inspect_error_slice<T, E>(v: &Validated<T, E>) -> &[E] {
+        v.error_slice()
     }
+    const fn inspect_error_payload<T, E>(v: &Validated<T, E>) -> Option<&NonEmptyErrors<E>> {
+        v.error_payload()
+    }
+    const _: for<'a> fn(&'a Validated<i32, &'static str>) -> &'a [&'static str] =
+        inspect_error_slice;
+    const _: for<'a> fn(
+        &'a Validated<i32, &'static str>,
+    ) -> Option<&'a NonEmptyErrors<&'static str>> = inspect_error_payload;
 }

@@ -11,6 +11,16 @@ enum TestStatus {
     Completed(String),
 }
 
+impl quickcheck::Arbitrary for TestStatus {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        match u8::arbitrary(g) % 3 {
+            0 => Self::Pending,
+            1 => Self::Active(i32::arbitrary(g)),
+            _ => Self::Completed(String::arbitrary(g)),
+        }
+    }
+}
+
 fn active_prism() -> Prism<
     TestStatus,
     i32,
@@ -52,18 +62,14 @@ fn test_prism_review_preview_law(a: i32) -> bool {
 
 // Law 2: Preview-Review (If preview succeeds, reviewing yields the original structure)
 // If preview(s) == Some(a) then review(*a) == s
-#[test]
-fn test_prism_preview_review_law() {
+#[quickcheck]
+fn test_prism_preview_review_law(s: TestStatus) -> bool {
     let p = active_prism();
-    let s = TestStatus::Active(42);
-    if let Some(focus) = p.preview(&s) {
-        assert_eq!(p.review(*focus), s);
-    } else {
-        panic!("preview should have succeeded");
+    match (p.preview(&s), &s) {
+        (Some(focus), _) => p.review(*focus) == s,
+        (None, TestStatus::Active(_)) => false,
+        (None, _) => true,
     }
-
-    let non_matching = TestStatus::Pending;
-    assert_eq!(p.preview(&non_matching), None);
 }
 
 // Contract C-07: C-CONV accessors preview(&S) -> Option<&A> and to_value(&S) -> Option<A>
@@ -477,13 +483,10 @@ fn test_prism_is_send_and_sync() {
     type SimplePrism =
         Prism<TestStatus, i32, fn(&TestStatus) -> Option<&i32>, fn(i32) -> TestStatus>;
 
+    fn assert_send_sync_val<T: Send + Sync>(_: &T) {}
+
     assert_send::<SimplePrism>();
     assert_sync::<SimplePrism>();
-
-    let prism = active_prism();
-    let handle = std::thread::spawn(move || {
-        let s = TestStatus::Active(42);
-        prism.preview(&s).copied()
-    });
-    assert_eq!(handle.join().unwrap(), Some(42));
+    // Closure-backed prism: the opaque `impl Fn` type must be Send + Sync too.
+    assert_send_sync_val(&active_prism());
 }

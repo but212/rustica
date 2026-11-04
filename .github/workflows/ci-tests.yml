@@ -138,7 +138,7 @@ jobs:
         run: cargo "+$TOOLCHAIN" udeps --all-targets --all-features --locked
 
   miri:
-    name: Miri operational ownership
+    name: Miri ownership
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -168,7 +168,7 @@ jobs:
       - name: Run targeted Miri tests
         env:
           TOOLCHAIN: ${{ env.NIGHTLY_TOOLCHAIN }}
-        run: cargo "+$TOOLCHAIN" miri test --lib --locked test_operational_miri_ownership_and_drop
+        run: cargo "+$TOOLCHAIN" miri test --lib --locked miri_ownership_and_drop
 
   bench:
     name: Benchmark Smoke Test

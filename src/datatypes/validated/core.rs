@@ -480,6 +480,7 @@ mod tests {
         let mut errors = NonEmptyErrors::new("a".to_string());
         errors.push("b".to_string());
         assert_eq!(errors.len(), 2);
+        assert!(!errors.is_empty());
 
         // Mutate via DerefMut slice indexing
         errors[0].make_ascii_uppercase();
@@ -518,28 +519,19 @@ mod tests {
         assert_eq!(from_none, Validated::invalid("dynamic_err"));
     }
 
-    #[test]
-    fn test_const_fn_capability() {
-        const fn inspect_errors<E>(errs: &NonEmptyErrors<E>) -> (&[E], usize, bool) {
-            (errs.as_slice(), errs.len(), errs.is_empty())
-        }
-
-        const fn inspect_validated<T, E>(v: &Validated<T, E>) -> (bool, bool, Option<&T>) {
-            (v.is_valid(), v.is_invalid(), v.as_option())
-        }
-
-        let errors = NonEmptyErrors::new("err");
-        let (slice, len, is_empty) = inspect_errors(&errors);
-        assert_eq!(slice, &["err"]);
-        assert_eq!(len, 1);
-        assert!(!is_empty);
-
-        let valid: Validated<i32, &str> = Validated::valid(42);
-        let (is_valid, is_invalid, opt) = inspect_validated(&valid);
-        assert!(is_valid);
-        assert!(!is_invalid);
-        assert_eq!(opt, Some(&42));
+    // Compile-time witnesses: `const fn` accessors must stay usable in const contexts.
+    const fn inspect_errors<E>(errs: &NonEmptyErrors<E>) -> (&[E], usize, bool) {
+        (errs.as_slice(), errs.len(), errs.is_empty())
     }
+    const fn inspect_validated<T, E>(v: &Validated<T, E>) -> (bool, bool, Option<&T>) {
+        (v.is_valid(), v.is_invalid(), v.as_option())
+    }
+    #[allow(clippy::type_complexity)]
+    const _: for<'a> fn(&'a NonEmptyErrors<&'static str>) -> (&'a [&'static str], usize, bool) =
+        inspect_errors;
+    #[allow(clippy::type_complexity)]
+    const _: for<'a> fn(&'a Validated<i32, &'static str>) -> (bool, bool, Option<&'a i32>) =
+        inspect_validated;
 
     #[test]
     fn test_non_empty_errors_display_and_error() {

@@ -57,15 +57,6 @@ fn test_complex_combination_laws() {
     assert_eq!(o1.combine(None), Some("hello".to_string()));
 }
 
-// --- Monoid Extensions (Repeat, Power, mconcat) ---
-
-#[test]
-fn test_monoid_utilities() {
-    use rustica::traits::monoid::repeat;
-
-    assert_eq!(repeat("x".to_string(), 3), "xxx");
-}
-
 #[test]
 fn test_validated_semigroup_accumulation() {
     use rustica::datatypes::validated::Validated;

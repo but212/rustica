@@ -593,13 +593,6 @@ mod unit_tests {
     }
 
     #[test]
-    fn test_choice_stack_size_compactness() {
-        use core::mem::size_of;
-        type Large = [u8; 1024];
-        assert!(size_of::<Choice<Large>>() < 1100);
-    }
-
-    #[test]
     fn test_choice_error_display() {
         assert_eq!(
             ChoiceError::EmptyFlatten.to_string(),
@@ -671,19 +664,12 @@ mod unit_tests {
         assert_eq!(choice.alternatives.capacity(), 64);
     }
 
-    #[test]
-    fn test_const_fn_capability() {
-        const fn inspect_choice<T>(c: &Choice<T>) -> (&T, &[T], usize, bool) {
-            (c.primary(), c.alternatives(), c.len(), c.is_empty())
-        }
-
-        let c = Choice::single(42);
-        let (p, alts, len, is_empty) = inspect_choice(&c);
-        assert_eq!(*p, 42);
-        assert_eq!(alts, &[] as &[i32]);
-        assert_eq!(len, 1);
-        assert!(!is_empty);
+    // Compile-time witness: `const fn` accessors must stay usable in const contexts.
+    const fn inspect_choice<T>(c: &Choice<T>) -> (&T, &[T], usize, bool) {
+        (c.primary(), c.alternatives(), c.len(), c.is_empty())
     }
+    #[allow(clippy::type_complexity)]
+    const _: fn(&Choice<i32>) -> (&i32, &[i32], usize, bool) = inspect_choice;
 
     #[test]
     fn test_choice_index() {

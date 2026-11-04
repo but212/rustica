@@ -228,21 +228,58 @@ mod tests {
     }
 
     #[test]
-    fn test_left_nested_stack_safety() {
-        let mut p: Free<TestCmd, ()> = Free::pure(());
-        for _ in 0..25_000 {
-            p = p.then(Free::suspend(TestCmd::Increment(1)));
+    fn test_deep_chains_run_without_stack_overflow() {
+        fn unit_increments(p: Free<TestCmd, ()>) -> i32 {
+            let mut count = 0;
+            p.run(|cmd| match cmd {
+                TestCmd::Increment(n) => {
+                    count += n;
+                    any_value(())
+                },
+                TestCmd::Fetch => any_value(count),
+            });
+            count
+        }
+        fn fetch_result(p: Free<TestCmd, i32>) -> i32 {
+            p.run(|cmd| match cmd {
+                TestCmd::Fetch => any_value(1_i32),
+                TestCmd::Increment(_) => any_value(()),
+            })
         }
 
-        let mut count = 0;
-        p.run(|cmd| match cmd {
-            TestCmd::Increment(n) => {
-                count += n;
-                Arc::new(()) as AnyValue
-            },
-            TestCmd::Fetch => Arc::new(count) as AnyValue,
-        });
-        assert_eq!(count, 25_000);
+        const DEPTH: usize = 25_000;
+        #[allow(clippy::type_complexity)]
+        let cases: [(&str, fn() -> i32, i32); 6] = [
+            (
+                "left-nested then from pure",
+                || unit_increments(pure_then_chain(DEPTH)),
+                25_000,
+            ),
+            ("then chain", || unit_increments(then_chain(DEPTH)), 25_001),
+            (
+                "right-nested zip_with",
+                || fetch_result(right_zip_chain(DEPTH)),
+                25_000,
+            ),
+            (
+                "left-nested zip_with",
+                || fetch_result(left_zip_chain(DEPTH)),
+                25_000,
+            ),
+            (
+                "map over suspend",
+                || fetch_result(map_chain(DEPTH)),
+                25_001,
+            ),
+            (
+                "pure-left zip_with over suspend",
+                || fetch_result(pure_left_zip_chain(DEPTH)),
+                25_001,
+            ),
+        ];
+        for (name, run, expected) in cases {
+            assert_eq!(run(), expected, "{name}");
+        }
     }
 
     #[test]
@@ -375,20 +412,6 @@ mod tests {
     }
 
     #[test]
-    fn test_deep_then_run() {
-        let p = then_chain(25_000);
-        let mut count = 0;
-        p.run(|cmd| match cmd {
-            TestCmd::Increment(n) => {
-                count += n;
-                any_value(())
-            },
-            TestCmd::Fetch => any_value(count),
-        });
-        assert_eq!(count, 25_001);
-    }
-
-    #[test]
     fn test_then_clone_reuse() {
         let prog = Free::<TestCmd, ()>::suspend(TestCmd::Increment(7))
             .then(Free::<TestCmd, i32>::suspend(TestCmd::Fetch));
@@ -415,29 +438,6 @@ mod tests {
 
         assert_eq!(r1, 7);
         assert_eq!(r2, 107);
-    }
-
-    #[test]
-    fn test_deep_right_nested_zip_with_run() {
-        let acc = right_zip_chain(25_000);
-        let total = acc.run(|cmd| match cmd {
-            TestCmd::Fetch => any_value(1_i32),
-            TestCmd::Increment(_) => any_value(()),
-        });
-        assert_eq!(total, 25_000);
-    }
-
-    #[test]
-    fn test_deep_left_nested_zip_with_run() {
-        let mut acc: Free<TestCmd, i32> = Free::pure(0);
-        for _ in 0..25_000 {
-            acc = acc.zip_with(Free::<TestCmd, i32>::suspend(TestCmd::Fetch), |a, b| a + b);
-        }
-        let total = acc.run(|cmd| match cmd {
-            TestCmd::Fetch => any_value(1_i32),
-            TestCmd::Increment(_) => any_value(()),
-        });
-        assert_eq!(total, 25_000);
     }
 
     #[test]
@@ -511,59 +511,68 @@ mod tests {
 
     #[test]
     fn test_monad_laws_effectful() {
-        let mut trace1 = Vec::new();
+        // Observable behavior = (result, effect trace); initial counter is non-zero
+        // so `Fetch` results are distinguishable from defaults.
+        fn observe(p: &Free<TestCmd, i32>) -> (i32, Vec<String>) {
+            let mut counter = 3;
+            let mut trace = Vec::new();
+            let result = p.run(|cmd| match cmd {
+                TestCmd::Increment(n) => {
+                    counter += n;
+                    trace.push(format!("inc({n})"));
+                    any_value(())
+                },
+                TestCmd::Fetch => {
+                    trace.push(String::from("fetch"));
+                    any_value(counter)
+                },
+            });
+            (result, trace)
+        }
+
         let f = |x: i32| {
             Free::<TestCmd, ()>::suspend(TestCmd::Increment(x))
                 .and_then(move |()| Free::pure(x * 2))
         };
+        let g = |x: i32| {
+            Free::<TestCmd, ()>::suspend(TestCmd::Increment(x + 1))
+                .and_then(move |()| Free::pure(x + 100))
+        };
 
-        // Left identity: pure(a).and_then(f) vs f(a)
-        let left = Free::<TestCmd, i32>::pure(5).and_then(f);
-        let right = f(5);
+        // Left identity: pure(a).and_then(f) == f(a)
+        assert_eq!(observe(&Free::pure(5).and_then(f)), observe(&f(5)));
 
-        let mut c1 = 0;
-        let r_left = left.run(|cmd| match cmd {
-            TestCmd::Increment(n) => {
-                c1 += n;
-                trace1.push(format!("inc({n})"));
-                any_value(())
-            },
-            TestCmd::Fetch => any_value(c1),
-        });
+        // Laws only relate two sides, so a defect that hits both sides alike (e.g. dropping
+        // `g`) passes them; the expected outcome of `m.and_then(f).and_then(g)` is pinned too.
+        #[allow(clippy::type_complexity)]
+        let ms: [(&str, Free<TestCmd, i32>, i32, &[&str]); 2] = [
+            ("pure", Free::pure(5), 110, &["inc(5)", "inc(11)"]),
+            (
+                "suspend",
+                Free::suspend(TestCmd::Fetch),
+                106,
+                &["fetch", "inc(3)", "inc(7)"],
+            ),
+        ];
+        for (name, m, expected_result, expected_trace) in &ms {
+            let (result, trace) = observe(&m.and_then(f).and_then(g));
+            assert_eq!(result, *expected_result, "result: {name}");
+            assert_eq!(trace, *expected_trace, "trace: {name}");
 
-        let mut trace2 = Vec::new();
-        let mut c2 = 0;
-        let r_right = right.run(|cmd| match cmd {
-            TestCmd::Increment(n) => {
-                c2 += n;
-                trace2.push(format!("inc({n})"));
-                any_value(())
-            },
-            TestCmd::Fetch => any_value(c2),
-        });
+            // Right identity: m.and_then(pure) == m
+            assert_eq!(
+                observe(&m.and_then(Free::pure)),
+                observe(m),
+                "right identity: {name}"
+            );
 
-        assert_eq!(r_left, r_right);
-        assert_eq!(trace1, trace2);
-    }
-
-    #[test]
-    fn test_deep_map_on_suspend_run() {
-        let p = map_chain(25_000);
-        let total = p.run(|cmd| match cmd {
-            TestCmd::Fetch => any_value(1_i32),
-            TestCmd::Increment(_) => any_value(()),
-        });
-        assert_eq!(total, 25_001);
-    }
-
-    #[test]
-    fn test_deep_pure_left_zip_with_suspend_run() {
-        let acc = pure_left_zip_chain(25_000);
-        let total = acc.run(|cmd| match cmd {
-            TestCmd::Fetch => any_value(1_i32),
-            TestCmd::Increment(_) => any_value(()),
-        });
-        assert_eq!(total, 25_001);
+            // Associativity: m.and_then(f).and_then(g) == m.and_then(|x| f(x).and_then(g))
+            assert_eq!(
+                observe(&m.and_then(f).and_then(g)),
+                observe(&m.and_then(move |x| f(x).and_then(g))),
+                "associativity: {name}"
+            );
+        }
     }
 
     #[test]

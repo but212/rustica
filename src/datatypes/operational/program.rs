@@ -45,20 +45,54 @@ mod tests {
 
     #[test]
     fn test_monad_laws() {
-        // Left identity: pure(a).bind(f) == f(a)
-        let a = 42;
-        let f = |x: i32| Program::<CalcInterpreter, i32>::pure(x * 2);
-        let left = Program::<CalcInterpreter, i32>::pure(a).and_then(f);
-        let mut interp = CalcInterpreter { current: 0 };
-        assert_eq!(left.run(&mut interp), 84);
+        type P = Program<CalcInterpreter, i32>;
 
-        // Right identity: m.bind(pure) == m
-        let m = Program::<CalcInterpreter, i32>::pure(100);
-        let right = m.and_then(Program::pure);
-        assert_eq!(right.run(&mut interp), 100);
+        // Observable behavior = (result, final interpreter state); programs are consumed by `run`.
+        fn observe(p: P) -> (i32, i32) {
+            let mut interp = CalcInterpreter { current: 3 };
+            let result = p.run(&mut interp);
+            (result, interp.current)
+        }
 
-        let m2 = Program::<CalcInterpreter, i32>::pure(100);
-        assert_eq!(m2.and_then(Program::pure).run(&mut interp), 100);
+        let f = |x: i32| Add(x).suspend().and_then(move |()| P::pure(x * 2));
+        let g = |x: i32| {
+            Multiply(x + 1)
+                .suspend()
+                .and_then(move |()| P::pure(x + 100))
+        };
+
+        // Left identity: pure(a).and_then(f) == f(a)
+        assert_eq!(observe(P::pure(5).and_then(f)), observe(f(5)));
+
+        // Laws only relate two sides, so a defect that hits both sides alike (e.g. dropping
+        // `g`) passes them; the expected (result, final state) of `m.and_then(f).and_then(g)`
+        // is pinned too.
+        #[allow(clippy::type_complexity)]
+        let ms: [(&str, fn() -> P, (i32, i32)); 2] = [
+            ("pure", || P::pure(5), (110, 88)),
+            ("suspend", || Fetch.suspend(), (106, 42)),
+        ];
+        for (name, m, expected) in ms {
+            assert_eq!(
+                observe(m().and_then(f).and_then(g)),
+                expected,
+                "expected outcome: {name}"
+            );
+
+            // Right identity: m.and_then(pure) == m
+            assert_eq!(
+                observe(m().and_then(P::pure)),
+                observe(m()),
+                "right identity: {name}"
+            );
+
+            // Associativity: m.and_then(f).and_then(g) == m.and_then(|x| f(x).and_then(g))
+            assert_eq!(
+                observe(m().and_then(f).and_then(g)),
+                observe(m().and_then(move |x| f(x).and_then(g))),
+                "associativity: {name}"
+            );
+        }
     }
 
     #[test]

@@ -206,6 +206,11 @@ mod unit_tests {
         Lens::new(|a: &Address| &a.street, |a, street| Address { street, ..a })
     }
 
+    #[test]
+    fn debug_output_names_the_type_without_requiring_closure_debug() {
+        assert_eq!(alloc::format!("{:?}", street_lens()), "Lens { .. }");
+    }
+
     #[allow(clippy::type_complexity)]
     fn address_lens() -> Lens<
         Person,

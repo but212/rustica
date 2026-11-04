@@ -96,4 +96,54 @@ mod tests {
     fn test_deep_pure_left_zip_with_suspend_drop() {
         drop(pure_left_zip_chain(50_000));
     }
+
+    /// Small-depth ownership checks for the Miri CI job (deep chains are too slow under Miri).
+    #[test]
+    fn test_free_miri_ownership_and_drop() {
+        use alloc::sync::Arc;
+
+        use crate::datatypes::free::any_value;
+
+        const DEPTH: usize = 64;
+
+        // Deep chains: drop in both clone/original orders.
+        let p = then_chain(DEPTH);
+        let q = p.clone();
+        drop(q);
+        drop(p);
+        let p = then_chain(DEPTH);
+        let q = p.clone();
+        drop(p);
+        drop(q);
+        drop(right_zip_chain(DEPTH));
+        drop(map_chain(DEPTH));
+        drop(pure_left_zip_chain(DEPTH));
+
+        // Captured values are released exactly once across drop, clone-drop, and run.
+        let shared = Arc::new(0_i32);
+        let build = || {
+            let (bind_capture, zip_capture) = (Arc::clone(&shared), Arc::clone(&shared));
+            Free::<TestCmd, ()>::suspend(TestCmd::Increment(1))
+                .and_then(move |()| Free::pure(*bind_capture))
+                .zip_with(
+                    Free::<TestCmd, i32>::suspend(TestCmd::Fetch),
+                    move |a, b| a + b + *zip_capture,
+                )
+        };
+
+        let prog = build();
+        assert_eq!(Arc::strong_count(&shared), 3);
+        let clone = prog.clone();
+        drop(prog);
+        assert_eq!(Arc::strong_count(&shared), 3);
+        drop(clone);
+        assert_eq!(Arc::strong_count(&shared), 1);
+
+        let result = build().run(|cmd| match cmd {
+            TestCmd::Increment(_) => any_value(()),
+            TestCmd::Fetch => any_value(1_i32),
+        });
+        assert_eq!(result, 1);
+        assert_eq!(Arc::strong_count(&shared), 1);
+    }
 }
