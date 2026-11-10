@@ -333,9 +333,8 @@ mod tests {
     }
 
     // Compile-time witness: `const fn` accessors must stay usable in const contexts.
+    #[allow(dead_code)]
     const fn inspect_error<E>(err: &ContextError<E>) -> (&E, &[String]) {
         (err.error(), err.contexts())
     }
-    const _: for<'a> fn(&'a ContextError<&'static str>) -> (&'a &'static str, &'a [String]) =
-        inspect_error;
 }

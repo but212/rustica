@@ -304,24 +304,22 @@ mod tests {
     }
 
     // Compile-time witnesses: `const fn` accessors/constructors must stay usable in const contexts.
+    #[allow(dead_code)]
     const fn prog_flags<H: 'static, A: 'static>(p: &Program<H, A>) -> (bool, bool, bool) {
         (p.is_pure(), p.is_suspend(), p.is_bind())
     }
+    #[allow(dead_code)]
     const fn try_prog_flags<H: 'static, A: 'static, E: 'static>(
         p: &TryProgram<H, A, E>,
     ) -> (bool, bool, bool) {
         (p.is_pure(), p.is_suspend(), p.is_bind())
     }
+    #[allow(dead_code)]
     const fn make_prog() -> Program<CalcInterpreter, i32> {
         Program::pure(42)
     }
+    #[allow(dead_code)]
     const fn make_try_prog() -> TryProgram<FallibleCalc, i32, &'static str> {
         TryProgram::pure(42)
     }
-    const _: fn(&Program<CalcInterpreter, i32>) -> (bool, bool, bool) = prog_flags;
-    #[allow(clippy::type_complexity)]
-    const _: fn(&TryProgram<FallibleCalc, i32, &'static str>) -> (bool, bool, bool) =
-        try_prog_flags;
-    const _: fn() -> Program<CalcInterpreter, i32> = make_prog;
-    const _: fn() -> TryProgram<FallibleCalc, i32, &'static str> = make_try_prog;
 }

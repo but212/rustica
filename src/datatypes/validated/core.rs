@@ -520,18 +520,14 @@ mod tests {
     }
 
     // Compile-time witnesses: `const fn` accessors must stay usable in const contexts.
+    #[allow(dead_code)]
     const fn inspect_errors<E>(errs: &NonEmptyErrors<E>) -> (&[E], usize, bool) {
         (errs.as_slice(), errs.len(), errs.is_empty())
     }
+    #[allow(dead_code)]
     const fn inspect_validated<T, E>(v: &Validated<T, E>) -> (bool, bool, Option<&T>) {
         (v.is_valid(), v.is_invalid(), v.as_option())
     }
-    #[allow(clippy::type_complexity)]
-    const _: for<'a> fn(&'a NonEmptyErrors<&'static str>) -> (&'a [&'static str], usize, bool) =
-        inspect_errors;
-    #[allow(clippy::type_complexity)]
-    const _: for<'a> fn(&'a Validated<i32, &'static str>) -> (bool, bool, Option<&'a i32>) =
-        inspect_validated;
 
     #[test]
     fn test_non_empty_errors_display_and_error() {

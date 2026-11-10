@@ -1,3 +1,6 @@
+# Feature-gated code (e.g. serde impls) must be compiled for its mutants to be testable.
+all_features = true
+
 # Equivalent mutants: not observable through the public API.
 exclude_re = [
   # Capacity-only arithmetic.

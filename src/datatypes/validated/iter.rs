@@ -179,15 +179,12 @@ mod tests {
     }
 
     // Compile-time witnesses: `const fn` accessors must stay usable in const contexts.
+    #[allow(dead_code)]
     const fn inspect_error_slice<T, E>(v: &Validated<T, E>) -> &[E] {
         v.error_slice()
     }
+    #[allow(dead_code)]
     const fn inspect_error_payload<T, E>(v: &Validated<T, E>) -> Option<&NonEmptyErrors<E>> {
         v.error_payload()
     }
-    const _: for<'a> fn(&'a Validated<i32, &'static str>) -> &'a [&'static str] =
-        inspect_error_slice;
-    const _: for<'a> fn(
-        &'a Validated<i32, &'static str>,
-    ) -> Option<&'a NonEmptyErrors<&'static str>> = inspect_error_payload;
 }

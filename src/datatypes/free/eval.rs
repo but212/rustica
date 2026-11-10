@@ -227,59 +227,57 @@ mod tests {
         let _: i32 = program.run(|_| Arc::new("wrong_type") as AnyValue);
     }
 
-    #[test]
-    fn test_deep_chains_run_without_stack_overflow() {
-        fn unit_increments(p: Free<TestCmd, ()>) -> i32 {
-            let mut count = 0;
-            p.run(|cmd| match cmd {
-                TestCmd::Increment(n) => {
-                    count += n;
-                    any_value(())
-                },
-                TestCmd::Fetch => any_value(count),
-            });
-            count
-        }
-        fn fetch_result(p: Free<TestCmd, i32>) -> i32 {
-            p.run(|cmd| match cmd {
-                TestCmd::Fetch => any_value(1_i32),
-                TestCmd::Increment(_) => any_value(()),
-            })
-        }
+    // Deep-chain stack-safety tests stay one-per-shape: a stack overflow aborts the process
+    // without an assertion message, so the test name is the only thing identifying the chain.
+    const DEEP: usize = 25_000;
 
-        const DEPTH: usize = 25_000;
-        #[allow(clippy::type_complexity)]
-        let cases: [(&str, fn() -> i32, i32); 6] = [
-            (
-                "left-nested then from pure",
-                || unit_increments(pure_then_chain(DEPTH)),
-                25_000,
-            ),
-            ("then chain", || unit_increments(then_chain(DEPTH)), 25_001),
-            (
-                "right-nested zip_with",
-                || fetch_result(right_zip_chain(DEPTH)),
-                25_000,
-            ),
-            (
-                "left-nested zip_with",
-                || fetch_result(left_zip_chain(DEPTH)),
-                25_000,
-            ),
-            (
-                "map over suspend",
-                || fetch_result(map_chain(DEPTH)),
-                25_001,
-            ),
-            (
-                "pure-left zip_with over suspend",
-                || fetch_result(pure_left_zip_chain(DEPTH)),
-                25_001,
-            ),
-        ];
-        for (name, run, expected) in cases {
-            assert_eq!(run(), expected, "{name}");
-        }
+    fn unit_increments(p: Free<TestCmd, ()>) -> i32 {
+        let mut count = 0;
+        p.run(|cmd| match cmd {
+            TestCmd::Increment(n) => {
+                count += n;
+                any_value(())
+            },
+            TestCmd::Fetch => any_value(count),
+        });
+        count
+    }
+
+    fn fetch_result(p: Free<TestCmd, i32>) -> i32 {
+        p.run(|cmd| match cmd {
+            TestCmd::Fetch => any_value(1_i32),
+            TestCmd::Increment(_) => any_value(()),
+        })
+    }
+
+    #[test]
+    fn test_deep_left_nested_then_from_pure_run() {
+        assert_eq!(unit_increments(pure_then_chain(DEEP)), 25_000);
+    }
+
+    #[test]
+    fn test_deep_then_run() {
+        assert_eq!(unit_increments(then_chain(DEEP)), 25_001);
+    }
+
+    #[test]
+    fn test_deep_right_nested_zip_with_run() {
+        assert_eq!(fetch_result(right_zip_chain(DEEP)), 25_000);
+    }
+
+    #[test]
+    fn test_deep_left_nested_zip_with_run() {
+        assert_eq!(fetch_result(left_zip_chain(DEEP)), 25_000);
+    }
+
+    #[test]
+    fn test_deep_map_on_suspend_run() {
+        assert_eq!(fetch_result(map_chain(DEEP)), 25_001);
+    }
+
+    #[test]
+    fn test_deep_pure_left_zip_with_suspend_run() {
+        assert_eq!(fetch_result(pure_left_zip_chain(DEEP)), 25_001);
     }
 
     #[test]

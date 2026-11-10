@@ -665,11 +665,10 @@ mod unit_tests {
     }
 
     // Compile-time witness: `const fn` accessors must stay usable in const contexts.
+    #[allow(dead_code)]
     const fn inspect_choice<T>(c: &Choice<T>) -> (&T, &[T], usize, bool) {
         (c.primary(), c.alternatives(), c.len(), c.is_empty())
     }
-    #[allow(clippy::type_complexity)]
-    const _: fn(&Choice<i32>) -> (&i32, &[i32], usize, bool) = inspect_choice;
 
     #[test]
     fn test_choice_index() {
