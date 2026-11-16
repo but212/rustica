@@ -40,4 +40,3 @@
   - [Operational](datatypes/operational.md)
   - [Prism](datatypes/prism.md)
   - [Validated](datatypes/validated.md)
-    - [Validated Core](datatypes/validated_core.md)

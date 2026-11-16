@@ -87,6 +87,11 @@ impl<F, A> Free<F, A> {
     ///
     /// Evaluates chains iteratively, keeping call stack depth $O(1)$.
     ///
+    /// # Receiver Semantics
+    ///
+    /// Borrows `&self` rather than consuming `self` because `Free` is an `Arc`-backed AST
+    /// supporting multi-shot evaluation without cloning the tree upfront.
+    ///
     /// # Panics
     ///
     /// Panics if the interpreter returns an [`AnyValue`] that does not match type `A`.
@@ -107,6 +112,11 @@ impl<F, A> Free<F, A> {
     }
 
     /// Evaluates the `Free` computation with a fallible effect interpreter.
+    ///
+    /// # Receiver Semantics
+    ///
+    /// Borrows `&self` rather than consuming `self` because `Free` is an `Arc`-backed AST
+    /// supporting multi-shot evaluation without cloning the tree upfront.
     ///
     /// # Errors
     ///

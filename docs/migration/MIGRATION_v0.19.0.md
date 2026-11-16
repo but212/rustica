@@ -215,7 +215,7 @@ Following categorical trait removal, the empty submodules `rustica::datatypes::v
 
 The `async` Cargo feature flag and three async combinators on `Validated` (`map_async`, `map_err_async`, and `and_then_async`) are deprecated in 0.19.0 and scheduled for removal in 0.20.0.
 
-Per Rustica's design rationale ([docs/DESIGN_RATIONALE.md](docs/DESIGN_RATIONALE.md)), native Rust control flow (`async`/`await` and pattern matching) replaces specialized async combinators. Because `Validated` async combinators rely purely on `std::future::Future` without an external runtime, the dedicated feature flag is redundant.
+Per Rustica's design rationale ([docs/DESIGN_RATIONALE.md](../DESIGN_RATIONALE.md)), native Rust control flow (`async`/`await` and pattern matching) replaces specialized async combinators. Because `Validated` async combinators rely purely on `std::future::Future` without an external runtime, the dedicated feature flag is redundant.
 
 #### Migration to Native Async Control Flow
 
@@ -341,7 +341,7 @@ if let Some(val) = free_val.as_pure() {
 
 Additionally, `TryProgram<H, A, E>` is marked `#[repr(transparent)]`, matching the layout of its inner node option.
 
-If cross-thread computation sharing or multi-threaded DSL AST analysis is required, use [`Free<F, A>`](crate::datatypes::free::Free), which is backed by `Arc` and designed for concurrent inspection and multi-pass evaluation.
+If cross-thread computation sharing or multi-threaded DSL AST analysis is required, use [`Free<F, A>`](../datatypes/free.md), which is backed by `Arc` and designed for concurrent inspection and multi-pass evaluation.
 
 ### Migration Path
 

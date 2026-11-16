@@ -32,7 +32,11 @@ jobs:
           mdbook-version: 'latest'
 
       - name: Link README into docs
-        run: ln -s ../README.md docs/README.md
+        run: |
+          sed -e 's#(\./docs/#(#g' -e 's#(docs/#(#g' \
+            -e 's#(\./LICENSE)#(https://github.com/but212/rustica/blob/main/LICENSE)#g' \
+            -e 's#(\.github/SECURITY\.md)#(https://github.com/but212/rustica/blob/main/.github/SECURITY.md)#g' \
+            README.md > docs/README.md
 
       - name: Build with mdBook
         run: mdbook build

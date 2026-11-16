@@ -18,7 +18,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 quickcheck = { version = "1.0", optional = true }
-serde = { version = "1.0", optional = true, features = ["derive"] }
+serde = { version = "1.0", optional = true, default-features = false, features = ["alloc", "derive"] }
 
 [dev-dependencies]
 quickcheck = "1.0"
@@ -27,7 +27,7 @@ serde_json = "1.0"
 
 [features]
 default = []
-serde = ["dep:serde", "serde/rc"]
+serde = ["dep:serde"]
 quickcheck = ["dep:quickcheck"]
 full = ["serde", "quickcheck"]
 # Canary flag for in-progress (WIP) features; currently an alias of `full`.

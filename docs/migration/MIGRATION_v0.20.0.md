@@ -49,7 +49,7 @@ To eliminate `std` dependencies without external hash-map crates, `Semigroup` fo
 
 ### Option A: `BTreeMap` / `BTreeSet` (Recommended)
 
-`BTreeMap` and `BTreeSet` live in `alloc` and retain full `Semigroup` / `Monoid` implementations.
+`BTreeMap` and `BTreeSet` live in `alloc` and implement `Semigroup` (`Monoid` is implemented for `Vec` and `String`).
 
 ```rust
 // Before (0.19.0)
