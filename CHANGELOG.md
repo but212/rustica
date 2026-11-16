@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [Unreleased]
+
+### Added
+
+- **`NonEmptyErrors` & `Validated` `Arbitrary` Shrinking**: Implemented `quickcheck::Arbitrary` (including `shrink`) for `NonEmptyErrors<E>` and added `shrink` for `Validated<T, E>` under the `quickcheck` feature, generating and shrinking multi-error values while preserving the non-empty error invariant.
+
+### Fixed
+
+- **`serde` Feature `no_std` Compatibility**: Configured `serde` with `default-features = false` and `features = ["alloc", "derive"]`, and removed unused `serde/rc`, so `--no-default-features --features serde` compiles in `#![no_std]` environments.
+
 ## [0.22.0]
 
 > **API Stability (0.22.0+):** This release completes the multi-release API surface consolidation (0.14.0–0.22.0). Starting with 0.22.0, no further sweeping API removals or big-bang breaking patches are planned.
