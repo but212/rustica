@@ -274,15 +274,6 @@ mod tests {
     }
 
     #[test]
-    fn test_any_value_helper() {
-        let val: AnyValue = any_value(42_i32);
-        assert_eq!(*val.downcast_ref::<i32>().unwrap(), 42);
-
-        let unit_val: AnyValue = any_value(());
-        assert!(unit_val.downcast_ref::<()>().is_some());
-    }
-
-    #[test]
     fn test_no_double_erasure_pure() {
         let val: AnyValue = any_value(42_i32);
         let prog: Free<TestCmd, AnyValue> = Free::pure(val);

@@ -272,7 +272,7 @@ assert_eq!(minimum, Some(Min(1)));
 ```
 
 For a domain with a known extremum, seed the reduction with, for example,
-`Max(i32::MIN)` or `Min(i32::MAX)`. See `docs/wrapper-monoid-identity.md`.
+`Max(i32::MIN)` or `Min(i32::MAX)`.
 
 ### `Result` and `MonadPlus`
 

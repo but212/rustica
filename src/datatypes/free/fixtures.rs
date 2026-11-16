@@ -44,6 +44,24 @@ pub(super) fn then_chain(depth: usize) -> Free<TestCmd, ()> {
     p
 }
 
+/// Left-nested `then` chain of `depth` `Increment(1)` suspensions starting from `pure(())`.
+pub(super) fn pure_then_chain(depth: usize) -> Free<TestCmd, ()> {
+    let mut p: Free<TestCmd, ()> = Free::pure(());
+    for _ in 0..depth {
+        p = p.then(Free::suspend(TestCmd::Increment(1)));
+    }
+    p
+}
+
+/// Left-nested `zip_with` chain of `Fetch` suspensions over `pure(0)`.
+pub(super) fn left_zip_chain(depth: usize) -> Free<TestCmd, i32> {
+    let mut acc: Free<TestCmd, i32> = Free::pure(0);
+    for _ in 0..depth {
+        acc = acc.zip_with(Free::<TestCmd, i32>::suspend(TestCmd::Fetch), |a, b| a + b);
+    }
+    acc
+}
+
 /// Right-nested `zip_with` chain of `Fetch` suspensions over `pure(0)`.
 pub(super) fn right_zip_chain(depth: usize) -> Free<TestCmd, i32> {
     let mut acc: Free<TestCmd, i32> = Free::pure(0);

@@ -10,7 +10,7 @@ import sys
 
 
 LINE_REGEX = re.compile(
-    r"^([A-Za-z0-9_]+)/([^\s]+)\s+\.\.\.\s+mean:\s*([^\s]+)(?:\s+median:\s*([^\s]+)\s+p95:\s*([^\s]+))?\s+min:\s*([^\s]+)\s+max:\s*([^\s]+)\s+\((\d+)\s+iters\)(?:\s+\[(.*?)\])?$"
+    r"^([A-Za-z0-9_]+)/([^\s]+)\s+\.\.\.\s+mean:\s*(\S+(?:\s+B)?)(?:\s+median:\s*(\S+(?:\s+B)?)\s+p95:\s*(\S+(?:\s+B)?))?\s+min:\s*(\S+(?:\s+B)?)\s+max:\s*(\S+(?:\s+B)?)\s+\((\d+)\s+iters\)(?:\s+\[(.*?)\])?$"
 )
 
 
@@ -178,8 +178,8 @@ def main(argv: list[str] | None = None) -> int:
         "--output",
         "-o",
         type=Path,
-        default=Path("docs/benchmark_result.md"),
-        help="Path to markdown output file (default: docs/benchmark_result.md).",
+        default=Path("docs/benchmark_report.md"),
+        help="Path to markdown output file (default: docs/benchmark_report.md).",
     )
     parser.add_argument(
         "--run",

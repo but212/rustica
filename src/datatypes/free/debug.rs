@@ -220,4 +220,39 @@ mod tests {
         let debug_str = format!("{p:?}");
         assert_ne!(debug_str, "");
     }
+
+    #[test]
+    fn test_debug_bind_spine_at_limit_renders_nested_and_truncates() {
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for _ in 0..MAX_SPINE_DEPTH {
+            p = p.and_then(|()| Free::suspend(TestCmd::Increment(1)));
+        }
+        let s = format!("{p:?}");
+        assert!(!s.contains("depth:"));
+        assert!(s.contains("Bind(..)"));
+    }
+
+    #[test]
+    fn test_debug_left_then_spine_at_limit_renders_nested_and_truncates() {
+        let s = format!("{:?}", then_chain(MAX_SPINE_DEPTH));
+        assert!(!s.contains("depth:"));
+        assert!(s.contains("Then(..)"));
+    }
+
+    #[test]
+    fn test_debug_right_then_spine_at_limit_truncates() {
+        let mut p: Free<TestCmd, ()> = Free::suspend(TestCmd::Increment(1));
+        for _ in 0..MAX_SPINE_DEPTH {
+            p = Free::<TestCmd, ()>::suspend(TestCmd::Increment(1)).then(p);
+        }
+        let s = format!("{p:?}");
+        assert!(!s.contains("depth:"));
+        assert!(s.contains("Then(..)"));
+    }
+
+    #[test]
+    fn test_debug_left_zip_chain_truncates() {
+        let s = format!("{:?}", left_zip_chain(MAX_SPINE_DEPTH));
+        assert!(s.contains("Zip(..)"));
+    }
 }

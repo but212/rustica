@@ -57,7 +57,11 @@ fn main() {
     let config_str = "not_a_number";
     match run_pipeline(config_str) {
         Ok(message) => println!("Success: {message}"),
-        Err(err) => println!("Error occurred:\n{}\n", err.error_chain()),
+        Err(err) => println!(
+            "Error occurred:\n{}\nRoot error: {}\n",
+            err.error_chain(),
+            err.error()
+        ),
     }
 
     println!("=== Example 2: Successful Pipeline ===\n");
@@ -65,7 +69,11 @@ fn main() {
     let config_str = "200";
     match run_pipeline(config_str) {
         Ok(message) => println!("Success: {message}\n"),
-        Err(err) => println!("Error occurred:\n{}\n", err.error_chain()),
+        Err(err) => println!(
+            "Error occurred:\n{}\nRoot error: {}\n",
+            err.error_chain(),
+            err.error()
+        ),
     }
 
     println!("=== Example 3: Bulk Context Accumulation ===\n");
@@ -83,7 +91,8 @@ fn main() {
     );
 
     println!(
-        "Bulk accumulated error analysis:\n{}",
-        chained_error.error_chain()
+        "Bulk accumulated error analysis:\n{}\nRoot error: {}",
+        chained_error.error_chain(),
+        chained_error.error()
     );
 }

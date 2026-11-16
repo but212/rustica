@@ -66,9 +66,9 @@ Side-effect or computation triggers must never be named `get` or `try_get`:
 - Assembles immutable instances by moving state:
 
 ```rust
-impl ComposableError {
-    pub fn with_error_code(mut self, code: u32) -> Self {
-        self.error_code = Some(code);
+impl<E> ContextError<E> {
+    pub fn with_context<C: IntoErrorContext>(mut self, context: C) -> Self {
+        self.context.insert(0, context.into_error_context());
         self
     }
 }
@@ -95,7 +95,7 @@ Container types provide standard iterators:
 | `iter_mut(&mut self)` | `&mut self` | `&'a mut T` | Traverses by mutable reference |
 | `into_iter(self)` | `self` | `T` | Consumes container by value (`IntoIterator`) |
 
-- **Domain Iterators**: `keys(&self) -> Keys<'_>`, `values(&self) -> Values<'_>`, `iter_errors(&self) -> std::slice::Iter<'_, E>`
+- **Domain Iterators**: `iter_errors(&self) -> core::slice::Iter<'_, E>`, `iter_errors_mut(&mut self) -> core::slice::IterMut<'_, E>`
 
 ---
 
@@ -115,9 +115,8 @@ Boolean inspection methods borrow via `&self`:
 ### 7.1 Structural Flattening and Filtering (`flatten`, `filter`)
 
 - Structural transforms prefer **consuming `self`** to avoid forcing `T: Clone`:
-  - Primary (consuming): `fn try_flatten<I>(self) -> Result<Self::Output<I>, ChoiceError> where T: IntoIterator<Item = I>`
+  - Primary (consuming): `fn try_flatten<I>(self) -> Result<Choice<I>, ChoiceError> where T: IntoIterator<Item = I>`
   - Primary (consuming): `fn filter<F>(self, predicate: F) -> Option<Self>`
-  - Borrowed companion: `fn filter_values<F>(&self, predicate: F) -> ... where T: Clone`
 
 ### 7.2 Monadic and Effect Computation Runners
 
@@ -150,10 +149,9 @@ Boolean inspection methods borrow via `&self`:
 | **Borrowed View** | Takes `&self`, borrows inner structure | `as_*` (`as_slice`, `as_str`, `as_bytes`) |
 | **Field Getter** | Inspects field value | `field(&self)`, `field_mut(&mut self)` (no `get_`) |
 | **Key/Index Lookup** | Fallible query by key or position | `get(&self, key)` |
-| **Consuming Builder** | `mut self`, updates field, returns `Self` | `with_*` (`with_error_code`, `with_context`) |
+| **Consuming Builder** | `mut self`, updates field, returns `Self` | `with_*` (`with_contexts`, `with_context`) |
 | **In-place Setter** | `&mut self`, updates field in-place | `set_*` (`set_timeout`, `set_code`) |
 | **Predicate** | Boolean state query | `is_*`, `has_*`, `can_*`, `contains` (always `&self`) |
 | **Computation Runner** | Evaluates effect or state computation | `run(self)`, `try_run(self)` (distinct from `get`) |
 | **Collection Flatten/Filter** | Structural consumption without `Clone` | Primary `try_flatten(self)`, `filter(self)` |
 | **Repeated Combining** | Consumes owned argument on final step | `repeat(value, n)` (avoids trailing `.clone()`) |
-| **Consuming Iterators** | Yields owned items without secondary buffer clone | `into_iter().next()` (`pop()` from reverse leaf buffer) |

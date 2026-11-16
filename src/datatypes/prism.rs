@@ -219,6 +219,11 @@ mod unit_tests {
     }
 
     #[test]
+    fn debug_output_names_the_type_without_requiring_closure_debug() {
+        assert_eq!(format!("{:?}", active_prism()), "Prism { .. }");
+    }
+
+    #[test]
     fn preview_review_and_modify_obey_prism_contracts() {
         let prism = active_prism();
         let target = Status::Active("Alice".into());

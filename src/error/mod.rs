@@ -332,15 +332,9 @@ mod tests {
         assert!(ok.is_ok());
     }
 
-    #[test]
-    fn test_const_fn_capability() {
-        const fn inspect_error<E>(err: &ContextError<E>) -> (&E, &[String]) {
-            (err.error(), err.contexts())
-        }
-
-        let err = ContextError::new("root error");
-        let (root, ctxs) = inspect_error(&err);
-        assert_eq!(*root, "root error");
-        assert_eq!(ctxs, &[] as &[String]);
+    // Compile-time witness: `const fn` accessors must stay usable in const contexts.
+    #[allow(dead_code)]
+    const fn inspect_error<E>(err: &ContextError<E>) -> (&E, &[String]) {
+        (err.error(), err.contexts())
     }
 }

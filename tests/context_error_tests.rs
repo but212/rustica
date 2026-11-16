@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 fn test_context_error_creation() {
     let err = ContextError::new("file not found");
     assert_eq!(*err.error(), "file not found");
+    assert!(err.contexts().is_empty());
     assert_eq!(err.into_error(), "file not found");
 }
 

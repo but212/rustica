@@ -1,6 +1,6 @@
-#![doc = include_str!("../../../docs/datatypes/validated_core.md")]
-
 use crate::traits::semigroup::Semigroup;
+#[cfg(any(test, feature = "quickcheck"))]
+use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 #[cfg(any(test, feature = "quickcheck"))]
@@ -405,18 +405,38 @@ impl<T: Semigroup, E> Semigroup for Validated<T, E> {
 }
 
 #[cfg(any(test, feature = "quickcheck"))]
+impl<E: Arbitrary> Arbitrary for NonEmptyErrors<E> {
+    fn arbitrary(g: &mut Gen) -> Self {
+        if g.size() <= 1 {
+            Self::new(E::arbitrary(g))
+        } else {
+            Self::from_first_and_iter(E::arbitrary(g), Vec::<E>::arbitrary(g))
+        }
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+        Box::new(self.0.shrink().filter_map(Self::try_from_vec))
+    }
+}
+
+#[cfg(any(test, feature = "quickcheck"))]
 impl<T, E> Arbitrary for Validated<T, E>
 where
     T: Arbitrary,
     E: Arbitrary,
 {
     fn arbitrary(g: &mut Gen) -> Self {
-        let x = T::arbitrary(g);
-        let y = E::arbitrary(g);
         if bool::arbitrary(g) {
-            Self::valid(x)
+            Self::Valid(T::arbitrary(g))
         } else {
-            Self::invalid(y)
+            Self::Invalid(NonEmptyErrors::arbitrary(g))
+        }
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+        match self {
+            Self::Valid(x) => Box::new(x.shrink().map(Self::Valid)),
+            Self::Invalid(es) => Box::new(es.shrink().map(Self::Invalid)),
         }
     }
 }
@@ -480,6 +500,7 @@ mod tests {
         let mut errors = NonEmptyErrors::new("a".to_string());
         errors.push("b".to_string());
         assert_eq!(errors.len(), 2);
+        assert!(!errors.is_empty());
 
         // Mutate via DerefMut slice indexing
         errors[0].make_ascii_uppercase();
@@ -518,27 +539,14 @@ mod tests {
         assert_eq!(from_none, Validated::invalid("dynamic_err"));
     }
 
-    #[test]
-    fn test_const_fn_capability() {
-        const fn inspect_errors<E>(errs: &NonEmptyErrors<E>) -> (&[E], usize, bool) {
-            (errs.as_slice(), errs.len(), errs.is_empty())
-        }
-
-        const fn inspect_validated<T, E>(v: &Validated<T, E>) -> (bool, bool, Option<&T>) {
-            (v.is_valid(), v.is_invalid(), v.as_option())
-        }
-
-        let errors = NonEmptyErrors::new("err");
-        let (slice, len, is_empty) = inspect_errors(&errors);
-        assert_eq!(slice, &["err"]);
-        assert_eq!(len, 1);
-        assert!(!is_empty);
-
-        let valid: Validated<i32, &str> = Validated::valid(42);
-        let (is_valid, is_invalid, opt) = inspect_validated(&valid);
-        assert!(is_valid);
-        assert!(!is_invalid);
-        assert_eq!(opt, Some(&42));
+    // Compile-time witnesses: `const fn` accessors must stay usable in const contexts.
+    #[allow(dead_code)]
+    const fn inspect_errors<E>(errs: &NonEmptyErrors<E>) -> (&[E], usize, bool) {
+        (errs.as_slice(), errs.len(), errs.is_empty())
+    }
+    #[allow(dead_code)]
+    const fn inspect_validated<T, E>(v: &Validated<T, E>) -> (bool, bool, Option<&T>) {
+        (v.is_valid(), v.is_invalid(), v.as_option())
     }
 
     #[test]
@@ -566,5 +574,71 @@ mod tests {
         assert_eq!(alloc::format!("{err_col}"), "inner root");
         // Validation errors are peers rather than a causal chain, so source is None.
         assert!(as_error.source().is_none());
+    }
+
+    #[test]
+    fn non_empty_errors_slice_comparisons_detect_inequality() {
+        let errors = NonEmptyErrors::try_from_iter([1, 2]).expect("non-empty");
+        let other = [1, 3];
+        let other_ref: &[i32] = &other;
+        let same_ref: &[i32] = &[1, 2];
+
+        assert!(errors != other[..]);
+        assert!(errors != other_ref);
+        assert!(errors != other.to_vec());
+        assert!(errors != other);
+
+        assert!(errors == [1, 2][..]);
+        assert!(errors == same_ref);
+        assert!(errors == alloc::vec![1, 2]);
+        assert!(errors == [1, 2]);
+    }
+
+    #[test]
+    fn validated_is_invalid_false_for_valid() {
+        assert!(!Validated::<i32, &str>::valid(1).is_invalid());
+        assert!(Validated::<i32, &str>::invalid("e").is_invalid());
+    }
+
+    #[test]
+    fn arbitrary_generates_multi_error_and_shrinks() {
+        use quickcheck::{Arbitrary, Gen};
+
+        let mut err_gen = Gen::from_size_and_seed(16, 42);
+        let err_samples: Vec<_> = (0..32)
+            .map(|_| NonEmptyErrors::<i32>::arbitrary(&mut err_gen))
+            .collect();
+        assert!(err_samples.iter().all(|e| !e.is_empty()));
+        assert!(err_samples.iter().any(|e| e.len() >= 2));
+
+        let errs = NonEmptyErrors::from_first_and_iter(100, [200]);
+        let err_shrinks: Vec<_> = errs.shrink().collect();
+        assert!(!err_shrinks.is_empty());
+        assert!(err_shrinks.iter().all(|e| !e.is_empty()));
+        assert!(err_shrinks.iter().any(|e| e.len() == 1));
+        assert!(err_shrinks.iter().any(|e| e[0] < 100));
+
+        let mut val_gen = Gen::from_size_and_seed(16, 42);
+        let val_samples: Vec<_> = (0..64)
+            .map(|_| Validated::<i32, i32>::arbitrary(&mut val_gen))
+            .collect();
+        assert!(val_samples.iter().any(Validated::is_valid));
+        assert!(val_samples.iter().any(|v| v.error_slice().len() >= 2));
+
+        let valid_shrinks: Vec<_> = Validated::<i32, i32>::valid(100).shrink().collect();
+        assert!(
+            valid_shrinks
+                .iter()
+                .any(|v| matches!(v, Validated::Valid(x) if *x < 100))
+        );
+
+        let invalid_shrinks: Vec<_> =
+            Validated::<i32, i32>::Invalid(NonEmptyErrors::from_first_and_iter(100, [200]))
+                .shrink()
+                .collect();
+        assert!(!invalid_shrinks.is_empty());
+        assert!(invalid_shrinks.iter().all(|v| !v.error_slice().is_empty()));
+        assert!(invalid_shrinks.iter().any(|v| v.error_slice().len() == 1));
+        assert!(invalid_shrinks.iter().any(|v| v.error_slice()[0] < 100));
     }
 }

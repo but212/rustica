@@ -692,20 +692,6 @@ pub const fn select_columns_lens() -> Lens<
     )
 }
 
-#[allow(clippy::type_complexity)]
-#[must_use]
-pub const fn select_table_lens() -> Lens<
-    SelectStatement,
-    String,
-    impl Fn(&SelectStatement) -> &String,
-    impl Fn(SelectStatement, String) -> SelectStatement,
-> {
-    Lens::new(
-        |s: &SelectStatement| &s.table,
-        |s, table| SelectStatement { table, ..s },
-    )
-}
-
 // ============================================================================
 // 6. Operational Monad: Pure Algebraic Fallible Execution (TryProgram / TryHandler)
 // ============================================================================

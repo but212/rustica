@@ -4,10 +4,12 @@ import sys
 import tempfile
 from pathlib import Path
 from unittest import TestCase, main
+from unittest.mock import patch
 
 SCRIPT_DIR = Path(__file__).parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
+import benchmark_report  # noqa: E402
 from release_metadata import Changelog, ReleaseEntry  # noqa: E402
 from benchmark_report import BenchmarkEntry, BenchmarkReport, BenchmarkRunner  # noqa: E402
 
@@ -197,6 +199,49 @@ Lens/set_same_value                      ... mean:     202ns min:     180ns max:
             self.assertIn("Validated/bar", content)
         finally:
             Path(rel_path).unlink(missing_ok=True)
+
+    def test_parse_memory_benchmark_entry(self) -> None:
+        sample_output = (
+            "Lens/view_borrow            ... mean:         0 B  median:         0 B  "
+            "p95:         0 B  min:         0 B  max:         0 B  (1000 iters)\n"
+        )
+        report = BenchmarkReport.from_raw_text(sample_output)
+        self.assertEqual(len(report.entries), 1)
+        self.assertEqual(
+            report.entries[0],
+            BenchmarkEntry(
+                group="Lens",
+                name="view_borrow",
+                mean="0 B",
+                median="0 B",
+                p95="0 B",
+                min="0 B",
+                max="0 B",
+                iters=1000,
+                throughput="-",
+            ),
+        )
+
+    def test_default_output_path_is_benchmark_report(self) -> None:
+        with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8") as tmp:
+            tmp.write("Lens/view_borrow ... mean: 3ns median: 3ns p95: 4ns min: 2ns max: 8ns (1000 iters)\n")
+            tmp_path = Path(tmp.name)
+
+        captured: list[Path] = []
+        try:
+            with patch.object(
+                BenchmarkReport,
+                "write_to",
+                autospec=True,
+                side_effect=lambda _self, path: captured.append(path),
+            ):
+                exit_code = benchmark_report.main(["--input", str(tmp_path)])
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(len(captured), 1)
+            expected_root = SCRIPT_DIR.parent.parent.resolve()
+            self.assertEqual(captured[0], expected_root / Path("docs/benchmark_report.md"))
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

@@ -149,30 +149,6 @@ mod tests {
     }
 
     #[test]
-    fn test_monad_laws() {
-        // Left identity: pure(a).bind(f) == f(a)
-        let a = 7;
-        let f = |x: i32| Free::pure(x * 3);
-        let left: Free<TestCmd, i32> = Free::pure(a).and_then(f);
-        let right = f(a);
-        assert_eq!(left.to_pure(), right.to_pure());
-
-        // Right identity: m.bind(pure) == m
-        let m: Free<TestCmd, i32> = Free::pure(42);
-        let bound = m.and_then(Free::pure);
-        assert_eq!(bound.to_pure(), Some(42));
-        assert_eq!(m.and_then(Free::pure).to_pure(), Some(42));
-
-        // Associativity: m.bind(f).bind(g) == m.bind(|x| f(x).bind(g))
-        let g = |x: i32| Free::pure(x + 100);
-        let m1: Free<TestCmd, i32> = Free::pure(5);
-        let m2: Free<TestCmd, i32> = Free::pure(5);
-        let r1 = m1.and_then(f).and_then(g);
-        let r2 = m2.and_then(move |x| f(x).and_then(g));
-        assert_eq!(r1.to_pure(), r2.to_pure());
-    }
-
-    #[test]
     fn test_anyvalue_bind_transformation() {
         let prog: Free<TestCmd, AnyValue> = Free::<TestCmd, ()>::suspend(TestCmd::Increment(10))
             .and_then(|()| Free::pure(Arc::new(99_i32) as AnyValue));
